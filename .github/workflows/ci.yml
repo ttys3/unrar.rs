@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, "upgrade-unrar-dll-version-ci-test" ]
   pull_request:
 
 env:
