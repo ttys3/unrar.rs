@@ -37,6 +37,9 @@ jobs:
     - name: OS X 10.12 deployment target
       if: matrix.name == 'MacOS 10.12'
       run: echo MACOSX_DEPLOYMENT_TARGET=10.12 >> $GITHUB_ENV
+    - name: MacOS 14 workaround
+      if: matrix.name == 'MacOS 14 x86_64'
+      run: clang --version && brew install llvm && clang --version
     - name: Build
       run: cargo build --verbose
     - name: Run tests
