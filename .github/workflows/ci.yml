@@ -54,7 +54,7 @@ jobs:
         echo "list /Applications/"
         ls -l /Applications/
         sudo rm -rf /Library/Developer/CommandLineTools/SDKs/MacOSX13*
-        sudo rm -rf /Library/Developer/CommandLineTools
+        #sudo rm -rf /Library/Developer/CommandLineTools
         brew install findutils
         cd /
         sudo gfind /Library -type f -name "stddef.h"
