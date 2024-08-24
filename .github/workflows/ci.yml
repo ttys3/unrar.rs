@@ -48,6 +48,7 @@ jobs:
         cd /
         sudo $(brew --prefix)/opt/findutils/libexec/gnubin/find /Library -type f -name "stddef.h" -exec ls -lh {} \;
         sudo $(brew --prefix)/opt/findutils/libexec/gnubin/find /Applications/ -type f -name "stddef.h" -exec ls -lh {} \;
+        sudo $(brew --prefix)/opt/findutils/libexec/gnubin/find /usr/local -type f -name "stddef.h" -exec ls -lh {} \;
     - name: Build
       run: cargo build --verbose
     - name: Run tests
