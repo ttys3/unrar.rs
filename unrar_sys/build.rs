@@ -78,6 +78,7 @@ fn main() {
         .flag_if_supported("-Wno-missing-braces")
         .flag_if_supported("-Wno-unknown-pragmas")
         .flag_if_supported("-Wno-deprecated-declarations")
+        .flag_if_supported("-I/Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/")
         .define("_FILE_OFFSET_BITS", Some("64"))
         .define("_LARGEFILE_SOURCE", None)
         .define("RAR_SMP", None)
