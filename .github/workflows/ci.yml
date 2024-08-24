@@ -37,7 +37,7 @@ jobs:
     - name: MacOS 14 workaround
       if: matrix.name == 'MacOS 14 x86_64'
       # ls -lh /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/
-      run: clang --version && xcode-select -p && cd / && find -type f -name "stddef.h" -exec ls -lh {}
+      run: clang --version && xcode-select -p && cd / && brew install findutils && $(brew --prefix)/opt/findutils/libexec/gnubin/find . -type f -name "stddef.h" -exec ls -lh {} \;
     - name: Build
       run: cargo build --verbose
     - name: Run tests
