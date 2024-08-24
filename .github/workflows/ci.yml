@@ -39,21 +39,17 @@ jobs:
       # ls -lh /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/
       run: |
         clang --version && xcode-select -p
-        sudo rm -rf /Applications/Xcode_14.*
-        sudo rm -rf /Applications/Xcode_15.0*
-        sudo rm -rf /Applications/Xcode_15.1*
-        sudo rm -rf /Applications/Xcode_15.2*
-        sudo rm -rf /Applications/Xcode_15.3*
-        sudo rm -rf /Applications/Xcode_16.*
-        #sudo rm -f /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/stddef.h
-        sudo rm -f /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/15.0.0/include/stddef.h
-        sudo rm -f /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/tapi/15.0.0/include/stddef.h
+        #sudo rm -rf /Applications/Xcode_14.*
+        #sudo rm -rf /Applications/Xcode_15.0*
+        #sudo rm -rf /Applications/Xcode_15.1*
+        #sudo rm -rf /Applications/Xcode_15.2*
+        #sudo rm -rf /Applications/Xcode_15.3*
+        #sudo rm -rf /Applications/Xcode_16.*
         echo "list /Library/Developer/CommandLineTools/SDKs/"
         ls -l /Library/Developer/CommandLineTools/SDKs/
         echo "list /Applications/"
         ls -l /Applications/
         sudo rm -rf /Library/Developer/CommandLineTools/SDKs/MacOSX13*
-        #sudo rm -rf /Library/Developer/CommandLineTools
         brew install findutils
         cd /
         sudo gfind /Library -type f -name "stddef.h"
