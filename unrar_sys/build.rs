@@ -60,7 +60,7 @@ fn main() {
     cc::Build::new()
         .cpp(true) // Switch to C++ library compilation.
         .opt_level(2)
-        .std("c++14")
+        .std("c++17")
         // by default cc crate tries to link against dynamic stdlib, which causes problems on windows-gnu target
         .cpp_link_stdlib(None)
         .warnings(false)
