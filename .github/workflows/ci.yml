@@ -36,7 +36,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: MacOS 14 workaround
       if: matrix.name == 'MacOS 14 x86_64'
-      run: clang --version && ls -lh /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/
+      run: clang --version && xcode-select -p && ls -lh /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/
     - name: Build
       run: cargo build --verbose
     - name: Run tests
