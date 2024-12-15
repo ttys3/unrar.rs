@@ -31,6 +31,7 @@ void Unpack::InitMT()
 
     ReadBufMT=new byte[UNP_READ_SIZE_MT+Overflow];
     memset(ReadBufMT,0,UNP_READ_SIZE_MT+Overflow);
+    printf("xxoo Unpack::InitMT init ReadBufMT\n");
   }
   if (UnpThreadData==NULL)
   {
@@ -51,6 +52,7 @@ void Unpack::InitMT()
           ErrHandler.MemoryError();
       }
     }
+    printf("xxoo Unpack::InitMT init UnpThreadData, MaxItems: %d\n", MaxItems);
   }
 }
 

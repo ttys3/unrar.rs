@@ -176,7 +176,7 @@ void Unpack::DoUnpack(uint Method,bool Solid)
     case VER_PACK7: // 70.
       ExtraDist=(Method==VER_PACK7);
 #ifdef RAR_SMP
-      mprintf(L"xxoo Unpack::DoUnpack MaxUserThreads: %d, Fragmented: %d\n", MaxUserThreads, Fragmented);
+      printf("xxoo Unpack::DoUnpack MaxUserThreads: %d, Fragmented: %d\n", MaxUserThreads, Fragmented);
       if (MaxUserThreads>1)
       {
 //      We do not use the multithreaded unpack routine to repack RAR archives
@@ -186,13 +186,13 @@ void Unpack::DoUnpack(uint Method,bool Solid)
 //      in fragmented window mode.
           if (!Fragmented)
           {
-            mprintf(L"xxoo Unpack::DoUnpack Unpack5MT\n");
+            printf("xxoo Unpack::DoUnpack Unpack5MT\n");
             Unpack5MT(Solid);
             break;
           }
       }
 #endif
-      mprintf(L"xxoo Unpack::DoUnpack Unpack5\n");
+      printf("xxoo Unpack::DoUnpack Unpack5\n");
       Unpack5(Solid);
       break;
   }

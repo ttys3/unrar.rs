@@ -23,7 +23,7 @@ CmdExtract::CmdExtract(CommandData *Cmd)
 
   Unp=new Unpack(&DataIO);
 #ifdef RAR_SMP
-  mprintf(L"xxoo Threads num %d\n", Cmd->Threads);
+  printf("xxoo Threads num %d\n", Cmd->Threads);
   Unp->SetThreads(Cmd->Threads);
 #endif
 }
@@ -787,12 +787,12 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
       bool LinkSuccess=true; // Assume success for test mode.
       if (LinkEntry)
       {
-        mprintf(L"xxoo LinkEntry\n");
+        printf("xxoo LinkEntry\n");
         FILE_SYSTEM_REDIRECT Type=Arc.FileHead.RedirType;
 
         if (Type==FSREDIR_HARDLINK || Type==FSREDIR_FILECOPY)
         {
-          mprintf(L"xxoo LinkEntry FSREDIR_HARDLINK or FSREDIR_FILECOPY, type: %d\n", Type);
+          printf("xxoo LinkEntry FSREDIR_HARDLINK or FSREDIR_FILECOPY, type: %d\n", Type);
           std::wstring RedirName;
         
           // 2022.11.15: Might be needed when unpacking WinRAR 5.0 links with
@@ -817,7 +817,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
         else
           if (Type==FSREDIR_UNIXSYMLINK || Type==FSREDIR_WINSYMLINK || Type==FSREDIR_JUNCTION)
           {
-            mprintf(L"xxoo LinkEntry FSREDIR_UNIXSYMLINK or FSREDIR_WINSYMLINK or FSREDIR_JUNCTION, type: %d\n", Type);
+            printf("xxoo LinkEntry FSREDIR_UNIXSYMLINK or FSREDIR_WINSYMLINK or FSREDIR_JUNCTION, type: %d\n", Type);
             if (FileCreateMode)
             {
               bool UpLink;
@@ -860,7 +860,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
             UnstoreFile(DataIO,Arc.FileHead.UnpSize);
           else
           {
-            mprintf(L"xxoo UnstoreFile using Unp\n");
+            printf("xxoo UnstoreFile using Unp\n");
             try
             {
               Unp->Init(Arc.FileHead.WinSize,Arc.FileHead.Solid);
@@ -880,7 +880,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
             else
 #endif
               {
-                mprintf(L"xxoo Unp->DoUnpack(Arc.FileHead.UnpVer,Arc.FileHead.Solid)\n");
+                printf("xxoo Unp->DoUnpack(Arc.FileHead.UnpVer=%d,Arc.FileHead.Solid=%d)\n", Arc.FileHead.UnpVer, Arc.FileHead.Solid);
                 Unp->DoUnpack(Arc.FileHead.UnpVer,Arc.FileHead.Solid);
               }
           }
