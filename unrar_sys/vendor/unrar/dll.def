@@ -11,3 +11,5 @@ EXPORTS
   RARSetProcessDataProc
   RARSetPassword
   RARGetDllVersion
+  RARExtractAll
+  RARExtractAllW

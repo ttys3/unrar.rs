@@ -1,3 +1,5 @@
 9d38459f07e4fd6093246c35c98921579281aee2
 162e1a589e388ce183a70f721cb820b99d5a71bf
 c3b414e28f87f06df43d6ab91220faf1647f7433
+# Added RARExtractAll/RARExtractAllW functions for batch extraction (dll.cpp, dll.hpp, dll.def)
+# This bypasses the per-file API overhead for better performance with many small files.

@@ -185,6 +185,8 @@ void   PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc);
 void   PASCAL RARSetProcessDataProc(HANDLE hArcData,PROCESSDATAPROC ProcessDataProc);
 void   PASCAL RARSetPassword(HANDLE hArcData,char *Password);
 int    PASCAL RARGetDllVersion();
+int    PASCAL RARExtractAll(HANDLE hArcData,char *DestPath);
+int    PASCAL RARExtractAllW(HANDLE hArcData,wchar_t *DestPath);
 
 #ifdef __cplusplus
 }

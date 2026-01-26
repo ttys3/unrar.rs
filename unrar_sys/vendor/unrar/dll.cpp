@@ -489,6 +489,91 @@ int PASCAL RARGetDllVersion()
 }
 
 
+// Batch extract all files to destination path.
+// This function bypasses the per-file API overhead for better performance
+// when extracting archives with many small files.
+int PASCAL RARExtractAll(HANDLE hArcData,char *DestPath)
+{
+  std::wstring DestPathW;
+  if (DestPath!=nullptr && *DestPath!=0)
+    CharToWide(DestPath,DestPathW);
+  return RARExtractAllW(hArcData,DestPathW.empty() ? nullptr : const_cast<wchar*>(DestPathW.c_str()));
+}
+
+
+int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
+{
+  DataSet *Data=(DataSet *)hArcData;
+  try
+  {
+    Data->Cmd.DllError=0;
+    
+    // Set extraction path
+    if (DestPath!=nullptr && *DestPath!=0)
+    {
+      Data->Cmd.ExtrPath=DestPath;
+      AddEndSlash(Data->Cmd.ExtrPath);
+    }
+    else
+      Data->Cmd.ExtrPath.clear();
+    
+    Data->Cmd.Command=L"X";
+    Data->Cmd.Test=false;
+    Data->Cmd.DllOpMode=RAR_EXTRACT;
+    
+    // Process all files in a tight loop
+    while (true)
+    {
+      Data->HeaderSize=(int)Data->Arc.SearchBlock(HEAD_FILE);
+      if (Data->HeaderSize<=0)
+      {
+        // Handle multi-volume archives
+        if (Data->Arc.Volume && Data->Arc.GetHeaderType()==HEAD_ENDARC &&
+            Data->Arc.EndArcHead.NextVolume)
+        {
+          if (MergeArchive(Data->Arc,NULL,false,'L'))
+          {
+            Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+            continue;
+          }
+          else
+            break; // No more volumes
+        }
+        break; // End of archive
+      }
+      
+      // Skip files that are split from previous volume in list mode
+      if (Data->OpenMode==RAR_OM_LIST && Data->Arc.FileHead.SplitBefore)
+      {
+        Data->Arc.SeekToNext();
+        continue;
+      }
+      
+      bool Repeat=false;
+      Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
+      
+      // Process extra file information (service blocks like ACLs)
+      while (Data->Arc.IsOpened() && Data->Arc.ReadHeader()!=0 && 
+             Data->Arc.GetHeaderType()==HEAD_SERVICE)
+      {
+        Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
+        Data->Arc.SeekToNext();
+      }
+      Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+    }
+  }
+  catch (std::bad_alloc&)
+  {
+    return ERAR_NO_MEMORY;
+  }
+  catch (RAR_EXIT ErrCode)
+  {
+    return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
+  }
+  return Data->Cmd.DllError;
+}
+
+
 static int RarErrorToDll(RAR_EXIT ErrCode)
 {
   switch(ErrCode)
