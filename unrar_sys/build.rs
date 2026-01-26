@@ -2,6 +2,7 @@ fn main() {
     if cfg!(windows) {
         println!("cargo:rustc-flags=-lpowrprof");
         println!("cargo:rustc-link-lib=shell32");
+        println!("cargo:rustc-link-lib=advapi32"); 
         if cfg!(target_env = "gnu") {
             println!("cargo:rustc-link-lib=pthread");
         }
