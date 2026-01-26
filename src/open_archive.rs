@@ -418,48 +418,95 @@ impl OpenArchive<Process, CursorBeforeHeader> {
             }
             let data = unsafe { &mut *(user_data as *mut CallbackData<'_, F>) };
 
+            // Helper function to safely read wchar_t* string from p1
+            // On Unix, wchar_t is 32-bit (i32), on Windows it's 16-bit (u16)
+            fn read_filename(p1: native::LPARAM) -> Option<PathBuf> {
+                if p1 == 0 {
+                    return None;
+                }
+                
+                // wchar_t type: i32 on Unix (macOS/Linux), u16 on Windows
+                #[cfg(unix)]
+                type WChar = i32;
+                #[cfg(windows)]
+                type WChar = u16;
+                
+                let ptr = p1 as *const WChar;
+                if ptr.is_null() {
+                    return None;
+                }
+                
+                // Manually find the null terminator and build the string
+                let mut len = 0usize;
+                const MAX_LEN: usize = 1024;
+                unsafe {
+                    while len < MAX_LEN {
+                        if *ptr.add(len) == 0 {
+                            break;
+                        }
+                        len += 1;
+                    }
+                }
+                
+                if len == 0 {
+                    return None;
+                }
+                
+                // Convert to string
+                let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+                
+                // On Unix, wchar_t is i32, convert to u32 for char conversion
+                #[cfg(unix)]
+                let path_string: String = slice
+                    .iter()
+                    .filter_map(|&c| char::from_u32(c as u32))
+                    .collect();
+                
+                #[cfg(windows)]
+                let path_string = String::from_utf16_lossy(
+                    &slice.iter().map(|&c| c as u16).collect::<Vec<_>>()
+                );
+                
+                Some(PathBuf::from(path_string))
+            }
+
             match msg {
                 native::UCM_EXTRACTFILE => {
                     // p1 = filename (wchar_t*), p2 = file size
-                    let filename = unsafe {
-                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
-                    };
-                    let event = ExtractEvent::Start {
-                        filename: PathBuf::from(filename.to_os_string()),
-                        size: p2 as u64,
-                    };
-                    if !(data.callback)(event) {
-                        data.cancelled = true;
-                        return -1; // Cancel extraction
+                    if let Some(filename) = read_filename(p1) {
+                        let event = ExtractEvent::Start {
+                            filename,
+                            size: p2 as u64,
+                        };
+                        if !(data.callback)(event) {
+                            data.cancelled = true;
+                            return -1; // Cancel extraction
+                        }
                     }
                     0
                 }
                 native::UCM_EXTRACTFILE_OK => {
                     // p1 = filename (wchar_t*), p2 = 0
-                    let filename = unsafe {
-                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
-                    };
-                    let event = ExtractEvent::Ok {
-                        filename: PathBuf::from(filename.to_os_string()),
-                    };
-                    if !(data.callback)(event) {
-                        data.cancelled = true;
-                        return -1;
+                    if let Some(filename) = read_filename(p1) {
+                        let event = ExtractEvent::Ok { filename };
+                        if !(data.callback)(event) {
+                            data.cancelled = true;
+                            return -1;
+                        }
                     }
                     0
                 }
                 native::UCM_EXTRACTFILE_ERR => {
                     // p1 = filename (wchar_t*), p2 = error code
-                    let filename = unsafe {
-                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
-                    };
-                    let event = ExtractEvent::Err {
-                        filename: PathBuf::from(filename.to_os_string()),
-                        error_code: p2 as i32,
-                    };
-                    if !(data.callback)(event) {
-                        data.cancelled = true;
-                        return -1;
+                    if let Some(filename) = read_filename(p1) {
+                        let event = ExtractEvent::Err {
+                            filename,
+                            error_code: p2 as i32,
+                        };
+                        if !(data.callback)(event) {
+                            data.cancelled = true;
+                            return -1;
+                        }
                     }
                     0
                 }
