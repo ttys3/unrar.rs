@@ -93,6 +93,10 @@ pub const UCM_PROCESSDATA: c_uint = 1;
 pub const UCM_NEEDPASSWORD: c_uint = 2;
 pub const UCM_CHANGEVOLUMEW: c_uint = 3;
 pub const UCM_NEEDPASSWORDW: c_uint = 4;
+pub const UCM_LARGEDICT: c_uint = 5;
+pub const UCM_EXTRACTFILE: c_uint = 6;     // File extraction started
+pub const UCM_EXTRACTFILE_OK: c_uint = 7;  // File extraction succeeded
+pub const UCM_EXTRACTFILE_ERR: c_uint = 8; // File extraction failed
 
 // RAROpenArchiveDataEx::Flags
 pub const ROADF_VOLUME: c_uint = 0x0001;

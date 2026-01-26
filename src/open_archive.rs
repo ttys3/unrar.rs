@@ -31,6 +31,33 @@ pub enum VolumeInfo {
     Subsequent,
 }
 
+/// Extraction progress event for callbacks during batch extraction.
+///
+/// This enum is used with [`OpenArchive::extract_all_with_callback`] to receive
+/// notifications about extraction progress.
+#[derive(Debug, Clone)]
+pub enum ExtractEvent {
+    /// File extraction is starting.
+    Start {
+        /// The filename being extracted (relative path within the archive)
+        filename: PathBuf,
+        /// The uncompressed size of the file in bytes
+        size: u64,
+    },
+    /// File extraction completed successfully.
+    Ok {
+        /// The filename that was extracted
+        filename: PathBuf,
+    },
+    /// File extraction failed.
+    Err {
+        /// The filename that failed to extract
+        filename: PathBuf,
+        /// The error code from the extraction
+        error_code: i32,
+    },
+}
+
 #[derive(Debug)]
 struct Handle(NonNull<native::Handle>);
 
@@ -319,6 +346,151 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     pub fn extract_all<P: AsRef<Path>>(self, dest: P) -> UnrarResult<()> {
         let dest_path = pathed::construct(dest.as_ref());
         let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
+        match Code::from(result).unwrap() {
+            Code::Success => Ok(()),
+            code => Err(UnrarError::from(code, When::Process)),
+        }
+    }
+
+    /// Extracts all files from the archive with a progress callback.
+    ///
+    /// This method is similar to [`extract_all`](Self::extract_all) but allows you to
+    /// receive notifications about extraction progress through a callback function.
+    ///
+    /// # Arguments
+    ///
+    /// * `dest` - The destination directory path.
+    /// * `callback` - A closure that receives [`ExtractEvent`] notifications.
+    ///   The callback returns `true` to continue extraction or `false` to cancel.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use unrar::{Archive, ExtractEvent};
+    ///
+    /// let archive = Archive::new("archive.rar")
+    ///     .open_for_processing()
+    ///     .expect("Failed to open archive");
+    ///
+    /// archive.extract_all_with_callback("./output", |event| {
+    ///     match event {
+    ///         ExtractEvent::Start { filename, size } => {
+    ///             print!("extracting {}... ({} bytes) ", filename.display(), size);
+    ///             true // continue extraction
+    ///         }
+    ///         ExtractEvent::Ok { .. } => {
+    ///             println!("ok");
+    ///             true
+    ///         }
+    ///         ExtractEvent::Err { filename, error_code } => {
+    ///             println!("error (code: {})", error_code);
+    ///             true // continue with other files
+    ///         }
+    ///     }
+    /// }).expect("Failed to extract archive");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `dest` contains nul characters.
+    pub fn extract_all_with_callback<P, F>(self, dest: P, mut callback: F) -> UnrarResult<()>
+    where
+        P: AsRef<Path>,
+        F: FnMut(ExtractEvent) -> bool,
+    {
+        // Userdata struct to pass to the C callback
+        struct CallbackData<'a, F> {
+            callback: &'a mut F,
+            cancelled: bool,
+        }
+
+        extern "C" fn extract_callback<F>(
+            msg: native::UINT,
+            user_data: native::LPARAM,
+            p1: native::LPARAM,
+            p2: native::LPARAM,
+        ) -> c_int
+        where
+            F: FnMut(ExtractEvent) -> bool,
+        {
+            if user_data == 0 {
+                return 0;
+            }
+            let data = unsafe { &mut *(user_data as *mut CallbackData<'_, F>) };
+
+            match msg {
+                native::UCM_EXTRACTFILE => {
+                    // p1 = filename (wchar_t*), p2 = file size
+                    let filename = unsafe {
+                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
+                    };
+                    let event = ExtractEvent::Start {
+                        filename: PathBuf::from(filename.to_os_string()),
+                        size: p2 as u64,
+                    };
+                    if !(data.callback)(event) {
+                        data.cancelled = true;
+                        return -1; // Cancel extraction
+                    }
+                    0
+                }
+                native::UCM_EXTRACTFILE_OK => {
+                    // p1 = filename (wchar_t*), p2 = 0
+                    let filename = unsafe {
+                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
+                    };
+                    let event = ExtractEvent::Ok {
+                        filename: PathBuf::from(filename.to_os_string()),
+                    };
+                    if !(data.callback)(event) {
+                        data.cancelled = true;
+                        return -1;
+                    }
+                    0
+                }
+                native::UCM_EXTRACTFILE_ERR => {
+                    // p1 = filename (wchar_t*), p2 = error code
+                    let filename = unsafe {
+                        widestring::WideCString::from_ptr_truncate(p1 as *const _, 2048)
+                    };
+                    let event = ExtractEvent::Err {
+                        filename: PathBuf::from(filename.to_os_string()),
+                        error_code: p2 as i32,
+                    };
+                    if !(data.callback)(event) {
+                        data.cancelled = true;
+                        return -1;
+                    }
+                    0
+                }
+                native::UCM_CHANGEVOLUMEW => {
+                    // Handle volume change: -1 means stop (volume not found)
+                    match p2 {
+                        native::RAR_VOL_ASK => -1,
+                        _ => 0,
+                    }
+                }
+                _ => 0,
+            }
+        }
+
+        let dest_path = pathed::construct(dest.as_ref());
+
+        let mut callback_data = CallbackData {
+            callback: &mut callback,
+            cancelled: false,
+        };
+
+        unsafe {
+            native::RARSetCallback(
+                self.handle.0.as_ptr(),
+                Some(extract_callback::<F>),
+                &mut callback_data as *mut _ as native::LPARAM,
+            );
+        }
+
+        let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
+
         match Code::from(result).unwrap() {
             Code::Success => Ok(()),
             code => Err(UnrarError::from(code, When::Process)),

@@ -4,14 +4,15 @@
 //!
 //! The destination directory must not exist (it will be created).
 //!
-//! This example demonstrates the performance-optimized batch extraction,
-//! which is significantly faster than per-file extraction for archives
-//! containing many small files.
+//! This example demonstrates the performance-optimized batch extraction
+//! with progress callbacks, which is significantly faster than per-file
+//! extraction for archives containing many small files.
 
 use std::env;
+use std::io::{self, Write};
 use std::path::Path;
 use std::process;
-use unrar::Archive;
+use unrar::{Archive, ExtractEvent};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -60,33 +61,38 @@ fn main() {
         }
     };
 
-    // Use batch extraction for optimal performance
+    // Use batch extraction with progress callback
     let start = std::time::Instant::now();
-    
-    if let Err(e) = archive.extract_all(dest_dir) {
+    let mut file_count = 0u32;
+    let mut error_count = 0u32;
+
+    let result = archive.extract_all_with_callback(dest_dir, |event| {
+        match event {
+            ExtractEvent::Start { filename, .. } => {
+                print!("extracting {}... ", filename.display());
+                let _ = io::stdout().flush();
+                true // continue extraction
+            }
+            ExtractEvent::Ok { .. } => {
+                println!("ok");
+                file_count += 1;
+                true
+            }
+            ExtractEvent::Err { error_code, .. } => {
+                println!("error (code: {})", error_code);
+                error_count += 1;
+                true // continue with other files
+            }
+        }
+    });
+
+    if let Err(e) = result {
         eprintln!("Error: Failed to extract archive: {}", e);
         process::exit(1);
     }
 
     let elapsed = start.elapsed();
+    println!();
     println!("Extraction completed in {:.2?}", elapsed);
-
-    // Count extracted files
-    let file_count = count_files(Path::new(dest_dir));
-    println!("Extracted {} files/directories", file_count);
-}
-
-/// Recursively count files and directories in a path
-fn count_files(path: &Path) -> usize {
-    let mut count = 0;
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            count += 1;
-            let entry_path = entry.path();
-            if entry_path.is_dir() {
-                count += count_files(&entry_path);
-            }
-        }
-    }
-    count
+    println!("Extracted {} files, {} errors", file_count, error_count);
 }
