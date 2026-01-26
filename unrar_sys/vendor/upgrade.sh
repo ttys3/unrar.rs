@@ -25,6 +25,9 @@ rm src.tar.gz &&
 
 git add unrar &&
 
-while read patch; do
-    git cherry-pick -n $patch
+while IFS= read -r patch; do
+    case "$patch" in
+        ''|\#*) continue ;;
+    esac
+    git cherry-pick -n "$patch"
 done < patches.txt
