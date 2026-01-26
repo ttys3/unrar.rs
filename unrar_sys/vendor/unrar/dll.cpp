@@ -521,45 +521,23 @@ int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
     Data->Cmd.Test=false;
     Data->Cmd.DllOpMode=RAR_EXTRACT;
     
-    // Process all files in a tight loop
+    // Use the same loop pattern as command line version for optimal performance.
+    // ReadHeader() reads the next block header directly, and ExtractCurrentFile()
+    // handles all header types internally (HEAD_FILE, HEAD_SERVICE, HEAD_ENDARC, etc.)
     while (true)
     {
-      Data->HeaderSize=(int)Data->Arc.SearchBlock(HEAD_FILE);
-      if (Data->HeaderSize<=0)
-      {
-        // Handle multi-volume archives
-        if (Data->Arc.Volume && Data->Arc.GetHeaderType()==HEAD_ENDARC &&
-            Data->Arc.EndArcHead.NextVolume)
-        {
-          if (MergeArchive(Data->Arc,NULL,false,'L'))
-          {
-            Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
-            continue;
-          }
-          else
-            break; // No more volumes
-        }
-        break; // End of archive
-      }
-      
-      // Skip files that are split from previous volume in list mode
-      if (Data->OpenMode==RAR_OM_LIST && Data->Arc.FileHead.SplitBefore)
-      {
-        Data->Arc.SeekToNext();
-        continue;
-      }
+      size_t Size=Data->Arc.ReadHeader();
       
       bool Repeat=false;
-      Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
-      
-      // Process extra file information (service blocks like ACLs)
-      while (Data->Arc.IsOpened() && Data->Arc.ReadHeader()!=0 && 
-             Data->Arc.GetHeaderType()==HEAD_SERVICE)
+      if (!Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat))
       {
-        Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
-        Data->Arc.SeekToNext();
+        if (Repeat)
+        {
+          // Handle extraction restart from first volume
+          continue;
+        }
+        break;  // End of archive or error
       }
-      Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
     }
   }
   catch (std::bad_alloc&)
