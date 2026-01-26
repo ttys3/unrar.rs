@@ -243,6 +243,22 @@ extern "C" {
     pub fn RARSetPassword(handle: *const Handle, password: *const c_char);
 
     pub fn RARGetDllVersion() -> c_int;
+
+    /// Batch extract all files to destination path.
+    /// This function bypasses the per-file API overhead for better performance
+    /// when extracting archives with many small files.
+    pub fn RARExtractAll(
+        handle: *const Handle,
+        dest_path: *const c_char,
+    ) -> c_int;
+
+    /// Batch extract all files to destination path (wide char version).
+    /// This function bypasses the per-file API overhead for better performance
+    /// when extracting archives with many small files.
+    pub fn RARExtractAllW(
+        handle: *const Handle,
+        dest_path: *const wchar_t,
+    ) -> c_int;
 }
 
 // ----------------- MINIMAL ABSTRACTIONS ----------------- //

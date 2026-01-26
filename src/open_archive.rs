@@ -288,6 +288,44 @@ impl<Mode: OpenMode> OpenArchive<Mode, CursorBeforeHeader> {
     }
 }
 
+impl OpenArchive<Process, CursorBeforeHeader> {
+    /// Extracts all files from the archive to the specified directory in a single operation.
+    ///
+    /// This method is significantly faster than iterating through files individually,
+    /// especially for archives containing many small files. It bypasses the per-file
+    /// FFI overhead by using a batch extraction function internally.
+    ///
+    /// # Arguments
+    ///
+    /// * `dest` - The destination directory path. If the directory doesn't exist,
+    ///   it will be created. Pass an empty path or `"."` for current directory.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use unrar::Archive;
+    ///
+    /// let archive = Archive::new("archive.rar")
+    ///     .open_for_processing()
+    ///     .expect("Failed to open archive");
+    ///
+    /// archive.extract_all("./output")
+    ///     .expect("Failed to extract archive");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if `dest` contains nul characters.
+    pub fn extract_all<P: AsRef<Path>>(self, dest: P) -> UnrarResult<()> {
+        let dest_path = pathed::construct(dest.as_ref());
+        let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
+        match Code::from(result).unwrap() {
+            Code::Success => Ok(()),
+            code => Err(UnrarError::from(code, When::Process)),
+        }
+    }
+}
+
 impl Iterator for OpenArchive<List, CursorBeforeHeader> {
     type Item = Result<FileHeader, UnrarError>;
 

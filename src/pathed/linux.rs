@@ -30,3 +30,15 @@ pub(crate) fn preprocess_extract(
 ) -> (Option<RarString>, Option<RarString>) {
     (None, Some(construct(base.unwrap_or(".".as_ref()).join(filename))))
 }
+
+pub(crate) fn extract_all(
+    handle: *const unrar_sys::Handle,
+    dest_path: &RarStr,
+) -> i32 {
+    unsafe {
+        unrar_sys::RARExtractAll(
+            handle,
+            dest_path.as_ptr().cast(),
+        )
+    }
+}
