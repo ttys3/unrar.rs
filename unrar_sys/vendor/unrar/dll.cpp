@@ -528,8 +528,46 @@ int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
     {
       size_t Size=Data->Arc.ReadHeader();
       
+      // Check if this is a file header and notify callback
+      bool IsFileHeader = (Data->Arc.GetHeaderType()==HEAD_FILE);
+      std::wstring CurrentFileName;
+      int64 CurrentFileSize = 0;
+      
+      if (IsFileHeader)
+      {
+        CurrentFileName = Data->Arc.FileHead.FileName;
+        CurrentFileSize = Data->Arc.FileHead.UnpSize;
+        
+        // Notify callback that file extraction is starting
+        if (Data->Cmd.Callback!=NULL)
+        {
+          if (Data->Cmd.Callback(UCM_EXTRACTFILE, Data->Cmd.UserData,
+              (LPARAM)CurrentFileName.c_str(), (LPARAM)CurrentFileSize)==-1)
+          {
+            return ERAR_SUCCESS; // User cancelled extraction
+          }
+        }
+      }
+      
       bool Repeat=false;
-      if (!Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat))
+      bool Success = Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat);
+      
+      // Notify callback of extraction result
+      if (IsFileHeader && Data->Cmd.Callback!=NULL)
+      {
+        if (Success)
+        {
+          Data->Cmd.Callback(UCM_EXTRACTFILE_OK, Data->Cmd.UserData,
+            (LPARAM)CurrentFileName.c_str(), 0);
+        }
+        else if (!Repeat)
+        {
+          Data->Cmd.Callback(UCM_EXTRACTFILE_ERR, Data->Cmd.UserData,
+            (LPARAM)CurrentFileName.c_str(), (LPARAM)Data->Cmd.DllError);
+        }
+      }
+      
+      if (!Success)
       {
         if (Repeat)
         {
