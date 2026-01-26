@@ -330,7 +330,10 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
+  // Return success if no DLL-specific error was set.
+  // We avoid using global ErrHandler.GetErrorCode() here because it can be 
+  // affected by parallel operations in multi-threaded environments.
+  return Data->Cmd.DllError;
 }
 
 
@@ -427,7 +430,10 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
+  // Return success if no DLL-specific error was set.
+  // We avoid using global ErrHandler.GetErrorCode() here because it can be 
+  // affected by parallel operations in multi-threaded environments.
+  return Data->Cmd.DllError;
 }
 
 
