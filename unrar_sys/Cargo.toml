@@ -1,13 +1,19 @@
 [package]
-name = "unrar_sys"
-version = "0.5.8"
-authors = ["Danyel Bayraktar <rust@danyel.io>"]
+name = "unrar-ng-sys"
+version = "0.5.9"
+authors = [
+  "Danyel Bayraktar <rust@danyel.io>",
+  "ttys3 <ttys3.ru@gmail.com>",
+]
 
 build = "build.rs"
 license = "MIT OR Apache-2.0"
-description = "FFI bindings to unrar (with minimal abstractions)"
-repository = "https://github.com/muja/unrar.rs"
+description = "FFI bindings to unrar (with minimal abstractions). Actively maintained fork of unrar_sys."
+repository = "https://github.com/ttys3/unrar.rs"
 edition = "2021"
+
+[lib]
+name = "unrar_sys"
 
 [features]
 default = ["std"]

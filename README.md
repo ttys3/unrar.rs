@@ -1,9 +1,22 @@
-# unrar
+# unrar-ng
 
-[![crates.io](https://img.shields.io/crates/v/unrar.svg)](https://crates.io/crates/unrar)
-[![API docs](https://docs.rs/unrar/badge.svg)](https://docs.rs/unrar)
-[![build](https://github.com/muja/unrar.rs/workflows/ci/badge.svg)](https://github.com/muja/unrar.rs/actions?query=workflow%3Aci)
+[![crates.io](https://img.shields.io/crates/v/unrar-ng.svg)](https://crates.io/crates/unrar-ng)
+[![API docs](https://docs.rs/unrar-ng/badge.svg)](https://docs.rs/unrar-ng)
+[![build](https://github.com/ttys3/unrar.rs/workflows/ci/badge.svg)](https://github.com/ttys3/unrar.rs/actions?query=workflow%3Aci)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](./README.md)
+
+> **Actively maintained fork** of [`unrar`](https://crates.io/crates/unrar) / [muja/unrar.rs](https://github.com/muja/unrar.rs).
+> The upstream crate is no longer actively maintained. This fork continues development with performance
+> improvements, extraction progress callbacks, and updates to the latest UnRAR source releases.
+>
+> Add to your `Cargo.toml`:
+>
+> ```toml
+> [dependencies]
+> unrar = { package = "unrar-ng", version = "0.5" }
+> ```
+>
+> Your existing `use unrar::Archive;` code keeps working unchanged.
 
 High-level wrapper around the unrar C library provided by [rarlab](http://rarlab.com).
 
