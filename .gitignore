@@ -1,2 +1,6 @@
 target
 Cargo.lock
+/.cursor/
+*.zip
+*.rar
+*.7z
