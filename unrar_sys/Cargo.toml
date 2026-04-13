@@ -3,7 +3,7 @@ name = "unrar-ng-sys"
 version = "0.5.9"
 authors = [
   "Danyel Bayraktar <rust@danyel.io>",
-  "ttys3 <ttys3.ru@gmail.com>",
+  "ttys3 <41882455+ttys3@users.noreply.github.com>",
 ]
 
 build = "build.rs"

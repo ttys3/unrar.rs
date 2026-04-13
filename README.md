@@ -6,8 +6,8 @@
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](./README.md)
 
 > **Actively maintained fork** of [`unrar`](https://crates.io/crates/unrar) / [muja/unrar.rs](https://github.com/muja/unrar.rs).
-> The upstream crate is no longer actively maintained. This fork continues development with performance
-> improvements, extraction progress callbacks, and updates to the latest UnRAR source releases.
+> This fork continues active development with performance improvements, extraction progress callbacks,
+> and updates to the latest UnRAR source releases.
 >
 > Add to your `Cargo.toml`:
 >
