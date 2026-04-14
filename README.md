@@ -42,7 +42,7 @@ The original crate uses the UnRAR DLL's per-file API (`RARReadHeaderEx` + `RARPr
 >
 > Test environment: tmpfs (pure in-memory I/O), 12th Gen Intel Core i7.
 >
-> For a detailed technical analysis, see [Batch Extraction Performance Optimization](./docs/2026-04-15_000215-batch-extraction-performance-optimization.md).
+> For a detailed technical analysis, see [Batch Extraction Performance Optimization](./docs/2026-04-15_batch-extraction-performance-optimization.md).
 
 ### Quick Example
 
