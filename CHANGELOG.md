@@ -6,6 +6,154 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-14
+
+
+### <!--1-->Bug Fixes
+
+- <details>
+  <summary><em>(unrar)</em> correct return value in RAROpenArchiveEx to return Data handle instead of nullptr (<a href="https://github.com/ttys3/unrar.rs/commits/9d38459f07e4fd6093246c35c98921579281aee2">9d38459</a>)</summary>
+  <blockquote>
+
+  this cherry-pick from commit 5accdb7d4e49618640183a0cbe868fef74db5c73<br>
+  Author: Danyel Bayraktar <danyel@webhippie.de><br>
+  Date:   2015-08-03 14:26:33 +0200<br>
+  <br>
+      Return non-null handle even on BAD_DATA (broken header)
+  </blockquote>
+  </details>
+- <em>(unrar)</em> improve error handling in RARReadHeaderEx and ProcessFile functions to return DLL-specific error directly, avoiding global error code interference in multi-threaded environments (<a href="https://github.com/ttys3/unrar.rs/commits/162e1a589e388ce183a70f721cb820b99d5a71bf">162e1a5</a>)
+- <em>(unrar)</em> enhance patch processing in upgrade script to skip empty lines and comments (<a href="https://github.com/ttys3/unrar.rs/commits/cdbd41db3207e4039424fc6254826a12c84ebf7b">cdbd41d</a>)
+- <em>(windows)</em> add advapi32 library link for Windows builds (<a href="https://github.com/ttys3/unrar.rs/commits/389f6a01c58e2c4bb067009c044ac1aa3f976bd8">389f6a0</a>)
+- add c3b414e28f87f06df43d6ab91220faf1647f7433 back for macOS 15 Intel (<a href="https://github.com/ttys3/unrar.rs/commits/84969f3eddb35269fefddade0ae72301b90caade">84969f3</a>)
+
+### <!--2-->Features
+
+- <em>(archive)</em> facilitate creating an owned archive (<a href="https://github.com/ttys3/unrar.rs/commits/0628d12b4f2f79d80e6c6c0707ce611e8952b052">0628d12</a>)
+- <em>(benchmarks)</em> add extraction benchmarks and batch extraction example for performance testing (<a href="https://github.com/ttys3/unrar.rs/commits/f91772dab5edf9743417091a32533883baff8701">f91772d</a>)
+- <details>
+  <summary><em>(dll)</em> add extraction progress callbacks UCM_EXTRACTFILE, UCM_EXTRACTFILE_OK, UCM_EXTRACTFILE_ERR (<a href="https://github.com/ttys3/unrar.rs/commits/a428b778817f73b2f0481b79dc3d549b1569906e">a428b77</a>)</summary>
+  <blockquote>
+
+  Add callback notifications in RARExtractAllW for file extraction progress:<br>
+  - UCM_EXTRACTFILE: called when file extraction starts (p1=filename, p2=size)<br>
+  - UCM_EXTRACTFILE_OK: called when file extraction succeeds<br>
+  - UCM_EXTRACTFILE_ERR: called when file extraction fails (p2=error code)<br>
+  <br>
+  This enables progress tracking and logging during batch extraction.
+  </blockquote>
+  </details>
+- <em>(unrar)</em> add RARExtractAll and RARExtractAllW functions for batch extraction to improve performance with multiple small files (<a href="https://github.com/ttys3/unrar.rs/commits/56263690aff9a6ef8bb999621518e7e7783d9218">5626369</a>)
+- <details>
+  <summary>enhance batch extraction with progress callbacks and error reporting (<a href="https://github.com/ttys3/unrar.rs/commits/e73498802cec5ab1323ddb9c699e62535139ac75">e734988</a>)</summary>
+  <blockquote>
+
+  Updated the batch extraction example to utilize progress callbacks, allowing users to track extraction status for each file. Added error reporting for failed extractions, improving user feedback during the process. The example now demonstrates the performance benefits of batch extraction with real-time updates.
+  </blockquote>
+  </details>
+
+### <!--3-->Performance
+
+- <em>(unrar)</em> optimize RARExtractAllW extraction loop for improved performance and readability (<a href="https://github.com/ttys3/unrar.rs/commits/33f57e0be1ef980cb44acb9af32209eaaa53dde8">33f57e0</a>)
+
+### <!--4-->Miscellaneous / Refactors
+
+- <em>(ci)</em> update macOS and Ubuntu versions in CI workflow to support latest environments (<a href="https://github.com/ttys3/unrar.rs/commits/d4ac95c050c5226f1bf2c94681cc00ec667f5b79">d4ac95c</a>)
+- <em>(ci)</em> update CI workflow to include new Windows 2025 and MacOS 26 environments, and rename existing OS entries for clarity (<a href="https://github.com/ttys3/unrar.rs/commits/79784e1194bba187ce69dc12c79d38e708041873">79784e1</a>)
+- <details>
+  <summary><em>(dll)</em> fix build by avoiding call to __builtin_cpu_supports (<a href="https://github.com/ttys3/unrar.rs/commits/8d7fa864b12d08d4ee139386585b05bc56c3b483">8d7fa86</a>)</summary>
+  <blockquote>
+
+  This fixes the ___cpu_model undefined error on macOS 12 and macOS 13<br>
+  confirmed macOS 14 does not have this issue
+  </blockquote>
+  </details>
+- <details>
+  <summary><em>(open_archive)</em> implement safe filename reading for extraction callbacks (<a href="https://github.com/ttys3/unrar.rs/commits/27c53aa39195275cfc589a8ffe45cdbfa2d1a0cf">27c53aa</a>)</summary>
+  <blockquote>
+
+  sometimes widestring::WideCString::from_ptr_truncate not work.<br>
+  <br>
+  Added a helper function to safely read wchar_t* strings for filenames in extraction callbacks,<br>
+  improving cross-platform compatibility. This change replaces the previous unsafe string handling with a more robust solution that accommodates both Unix and Windows wchar_t representations.
+  </blockquote>
+  </details>
+- <details>
+  <summary><em>(open_archive)</em> streamline wchar_t string handling for cross-platform compatibility (<a href="https://github.com/ttys3/unrar.rs/commits/e450ef5daa37c70e433557664475bcd35d40d42c">e450ef5</a>)</summary>
+  <blockquote>
+
+  Updated the filename reading function to utilize native::WCHAR for improved safety and clarity. This change simplifies the conversion process for wchar_t strings, ensuring consistent behavior across Unix and Windows platforms.
+  </blockquote>
+  </details>
+- <em>(unrar)</em> get ready update to https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/b2839df0521967b443ed9e002be01b81352ff118">b2839df</a>)
+- <em>(unrar)</em> add original https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/9290ea14671cf151b52772a350b2786406ce529d">9290ea1</a>)
+- <em>(unrar)</em> update patch reference from 5accdb7d4e49618640183a0cbe868fef74db5c73 to 9d38459f07e4fd6093246c35c98921579281aee2 (<a href="https://github.com/ttys3/unrar.rs/commits/6430f8b495707e047c783612f0b0a1476351e624">6430f8b</a>)
+- <details>
+  <summary><em>(unrar)</em> remove obsolete patch reference f2adc5820c30216f5ac27fb888040b6618d90ae6 from patches.txt (<a href="https://github.com/ttys3/unrar.rs/commits/3795512e90acccdb946a9a15094dd56ccbfa1097">3795512</a>)</summary>
+  <blockquote>
+
+  this is no longer required since the new isnt.cpp does not use WMI_IsWindows10() any more
+  </blockquote>
+  </details>
+- <em>(unrar)</em> update upgrade script URL to latest UnRAR release 7.2.3 (<a href="https://github.com/ttys3/unrar.rs/commits/2ff320a40842e70dc2a9fd740c6897a04508de69">2ff320a</a>)
+- <em>(unrar)</em> update patch reference from c3b414e28f87f06df43d6ab91220faf1647f7433 to 162e1a589e388ce183a70f721cb820b99d5a71bf (<a href="https://github.com/ttys3/unrar.rs/commits/4c21a6448b8116049af2f37cf25a95a6626bfced">4c21a64</a>)
+- <details>
+  <summary>rename crate to unrar-ng (fork) (<a href="https://github.com/ttys3/unrar.rs/commits/779cb1663a756d7cbc708bb2f861e5de0b7296e2">779cb16</a>)</summary>
+  <blockquote>
+
+  Rename the crates in preparation for publishing this actively maintained<br>
+  fork under new names on crates.io, while keeping source-level compatibility<br>
+  so existing users can migrate transparently.<br>
+  <br>
+  - Package rename: unrar → unrar-ng, unrar_sys → unrar-ng-sys<br>
+  - Preserve library names via [lib] name = "unrar" / "unrar_sys" so<br>
+    existing `use unrar::...` / `use unrar_sys::...` code keeps working<br>
+  - Add include whitelist in root Cargo.toml to avoid packaging untracked<br>
+    junk (xxx/, xxookkkk/, data/, tests/, benches/ excluded from publish)<br>
+  - Bump version to 0.5.9 for both crates<br>
+  - Add ttys3 to authors; update repository URL to ttys3/unrar.rs<br>
+  - README: add fork notice, migration snippet via `package = "unrar-ng"`
+  </blockquote>
+  </details>  - **BREAKING**: published as new crates on crates.io. The upstream
+`unrar` / `unrar_sys` crates are unaffected. Migration:
+
+    [dependencies]
+    unrar = { package = "unrar-ng", version = "0.5" }
+- <details>
+  <summary>use github noreply email and soften fork notice (<a href="https://github.com/ttys3/unrar.rs/commits/394a7702be2d79b8591e8b82683d48c31b258e8f">394a770</a>)</summary>
+  <blockquote>
+
+  - Replace personal email with github noreply address in authors field<br>
+    of both unrar-ng and unrar-ng-sys Cargo.toml<br>
+  - Reword README fork notice to avoid making claims about upstream<br>
+    maintenance status; only describe what this fork does
+  </blockquote>
+  </details>
+- <details>
+  <summary>update .gitignore to exclude additional file types and directories (<a href="https://github.com/ttys3/unrar.rs/commits/e3c3030a797726f94e8e3ba3e8ca402d59c18dbb">e3c3030</a>)</summary>
+  <blockquote>
+
+  Added entries to ignore cursor files and compressed archives (.zip, .rar, .7z) to keep the repository clean from unnecessary files.
+  </blockquote>
+  </details>
+
+### <!--6-->Documentation
+
+- <details>
+  <summary>document batch extraction performance optimization (<a href="https://github.com/ttys3/unrar.rs/commits/f97b4197df4c06942496e1ede7541e390f0144d1">f97b419</a>)</summary>
+  <blockquote>
+
+  - Add "Why This Fork?" section to README with benchmark table showing<br>
+    94k-file Linux kernel archive extracted in 13s (native CLI) vs 73s<br>
+    (upstream unrar crate) vs 13s (unrar-ng extract_all)<br>
+  - Add full technical analysis doc explaining the root cause<br>
+    (SearchBlock(HEAD_FILE) O(n) per-call overhead vs ReadHeader O(1)),<br>
+    the RARExtractAll DLL solution, Rust API usage, and guidance on<br>
+    when to use per-file vs batch extraction APIs
+  </blockquote>
+  </details>
+
+
 ## [0.5.8] - 2025-02-19
 
 This release fixes compilation errors for NetBSD

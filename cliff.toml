@@ -75,7 +75,7 @@ body = """
 trim = true
 
 postprocessors = [
-  { pattern = '<REPO>', replace = 'https://github.com/muja/unrar.rs' },
+  { pattern = '<REPO>', replace = 'https://github.com/ttys3/unrar.rs' },
 ]
 
 [git]
