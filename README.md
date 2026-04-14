@@ -22,6 +22,43 @@ High-level wrapper around the unrar C library provided by [rarlab](http://rarlab
 
 This library can only *extract* and *list* archives, it cannot *create* them.
 
+## Why This Fork?
+
+The primary motivation for this fork is **batch extraction performance**.
+
+The original crate uses the UnRAR DLL's per-file API (`RARReadHeaderEx` + `RARProcessFile`), which internally calls `SearchBlock(HEAD_FILE)` on every iteration. This causes redundant traversal of archive block headers, resulting in severe performance degradation when extracting archives with many small files.
+
+`unrar-ng` adds a new batch extraction API (`extract_all`) that uses the same efficient traversal loop as the native `unrar` CLI, completely eliminating this overhead.
+
+### Performance: 94,000 Files (Linux Kernel Source Archive)
+
+| Method | Time | vs. Native CLI |
+|--------|------|----------------|
+| Native `unrar x` CLI | **13s** | baseline |
+| Original `unrar` crate (per-file API) | **73s** | 5.6x slower |
+| **`unrar-ng` `extract_all`** | **13s** | **same speed** |
+
+> **5.6x faster** than the original crate — fully matching native CLI performance.
+>
+> Test environment: tmpfs (pure in-memory I/O), 12th Gen Intel Core i7.
+>
+> For a detailed technical analysis, see [Batch Extraction Performance Optimization](./docs/2026-04-15_000215-batch-extraction-performance-optimization.md).
+
+### Quick Example
+
+```rust
+use unrar::Archive;
+
+let archive = Archive::new("large_archive.rar")
+    .open_for_processing()
+    .expect("Failed to open archive");
+
+archive.extract_all("./output")
+    .expect("Failed to extract");
+```
+
+---
+
 Please look inside the [examples directory](./examples) to see how to use this library.
 Specifically the [**lister**](./examples/lister.rs) example is well documented and advanced!
 
