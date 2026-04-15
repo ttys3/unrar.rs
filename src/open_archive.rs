@@ -889,18 +889,36 @@ impl fmt::Display for FileHeader {
 
 impl From<native::HeaderDataEx> for FileHeader {
     fn from(header: native::HeaderDataEx) -> Self {
-        let filename = unsafe {
-            widestring::WideCString::from_ptr_truncate(header.filename_w.as_ptr() as *const _, 1024)
-        };
+        // `native::HeaderDataEx` is `#[repr(C, packed(1))]` to match the C++
+        // `#pragma pack(push, 1)` layout, so taking `&header.filename_w` is
+        // forbidden. `&raw const` produces a raw pointer without creating a
+        // reference; the underlying wchar_t array happens to be 4-byte
+        // aligned at its real offset in memory, so the subsequent read is
+        // fine for `WideCString::from_ptr_truncate`.
+        let filename_w_ptr = &raw const header.filename_w as *const _;
+        let filename =
+            unsafe { widestring::WideCString::from_ptr_truncate(filename_w_ptr, 1024) };
+
+        // Packed-struct fields are `Copy` primitives here, so value reads
+        // are legal; we copy each scalar out into a local before passing it
+        // to the constructor so rustc can't be tempted into taking a
+        // reference to the packed field.
+        let flags = header.flags;
+        let unp_size = header.unp_size;
+        let unp_size_high = header.unp_size_high;
+        let file_crc = header.file_crc;
+        let file_time = header.file_time;
+        let method = header.method;
+        let file_attr = header.file_attr;
 
         FileHeader {
             filename: PathBuf::from(filename.to_os_string()),
-            flags: EntryFlags::from_bits(header.flags).unwrap(),
-            unpacked_size: unpack_unp_size(header.unp_size, header.unp_size_high),
-            file_crc: header.file_crc,
-            file_time: header.file_time,
-            method: header.method,
-            file_attr: header.file_attr,
+            flags: EntryFlags::from_bits(flags).unwrap(),
+            unpacked_size: unpack_unp_size(unp_size, unp_size_high),
+            file_crc,
+            file_time,
+            method,
+            file_attr,
         }
     }
 }

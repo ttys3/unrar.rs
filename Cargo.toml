@@ -1,12 +1,13 @@
 [package]
 name = "unrar-ng"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
   "Danyel Bayraktar <rust@danyel.io>",
   "vjoki <vjoki@zv.fi>",
   "ttys3 <41882455+ttys3@users.noreply.github.com>",
 ]
 edition = "2021"
+rust-version = "1.94"
 
 license = "MIT OR Apache-2.0"
 description = "list and extract RAR archives. Actively maintained fork of unrar."
@@ -32,11 +33,14 @@ widestring = "1"
 [dependencies.unrar_sys]
 path = "unrar_sys"
 package = "unrar-ng-sys"
-version = "0.6.1"
+version = "0.6.2"
 
 [dev-dependencies]
 tempfile = "3.12.0"
 criterion = { version = "0.5", features = ["html_reports"] }
+# Direct dev-dep so the packed-layout regression test in tests/packed_layout.rs
+# can call the raw FFI (otherwise integration tests cannot `use unrar_sys::*`).
+unrar_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.6.2" }
 
 [[bench]]
 name = "extract_benchmark"

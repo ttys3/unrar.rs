@@ -121,7 +121,14 @@ pub struct Handle { _private: [u8; 0] }
 
 // ----------------- STRUCTS ----------------- //
 
-#[repr(C)]
+// All DLL structs are packed(1) to match the C++ `#pragma pack(push, 1)` in
+// `vendor/unrar/dll.hpp`. Without packed(1), natural alignment in `#[repr(C)]`
+// inserts padding before pointer fields that does not exist on the C side,
+// causing every field after the first pointer to sit at a different offset
+// than the library expects. The current integration tests only read fields
+// before the first pointer, which masked this ABI drift — but it was real.
+
+#[repr(C, packed(1))]
 pub struct HeaderData {
     pub archive_name: [c_char; 260],
     pub filename: [c_char; 260],
@@ -140,7 +147,7 @@ pub struct HeaderData {
     pub comment_state: c_uint,
 }
 
-#[repr(C)]
+#[repr(C, packed(1))]
 pub struct HeaderDataEx {
     pub archive_name: [c_char; 1024],
     pub archive_name_w: [wchar_t; 1024],
@@ -174,10 +181,14 @@ pub struct HeaderDataEx {
     pub ctime_high: c_uint,
     pub atime_low: c_uint,
     pub atime_high: c_uint,
-    pub reserved: [c_uint; 988],
+    pub arc_name_ex: *mut wchar_t,
+    pub arc_name_ex_size: c_uint,
+    pub file_name_ex: *mut wchar_t,
+    pub file_name_ex_size: c_uint,
+    pub reserved: [c_uint; 982],
 }
 
-#[repr(C)]
+#[repr(C, packed(1))]
 pub struct OpenArchiveData {
     pub archive_name: *const c_char,
     pub open_mode: c_uint,
@@ -188,7 +199,7 @@ pub struct OpenArchiveData {
     pub comment_state: c_uint,
 }
 
-#[repr(C)]
+#[repr(C, packed(1))]
 pub struct OpenArchiveDataEx {
     pub archive_name: *const c_char,
     pub archive_name_w: *const wchar_t,
@@ -203,8 +214,63 @@ pub struct OpenArchiveDataEx {
     pub user_data: LPARAM,
     pub op_flags: c_uint,
     pub comment_buffer_w: *mut wchar_t,
-    pub reserved: [c_uint; 25],
+    pub mark_of_the_web: *mut wchar_t,
+    pub reserved: [c_uint; 23],
 }
+
+// ----------------- LAYOUT ASSERTIONS ----------------- //
+//
+// These compile-time assertions verify that our Rust struct definitions
+// match the C++ packed layout from `vendor/unrar/dll.hpp` (which sits
+// inside a `#pragma pack(push, 1)` block). If upstream extends a struct
+// prefix or we accidentally drop `packed(1)`, the drift turns into a hard
+// compile error instead of silent memory corruption at runtime.
+//
+// We only assert the 64-bit pointer-width case because that's the only
+// target we actively build and test. Windows 64-bit and Linux/macOS 64-bit
+// agree on all the relevant field widths (`LPARAM` is 8 bytes on both).
+// 32-bit targets still build, they just don't get layout verification.
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    use core::mem::{offset_of, size_of};
+
+    // HeaderDataEx — packed, pointer=8
+    assert!(offset_of!(HeaderDataEx, archive_name) == 0);
+    assert!(offset_of!(HeaderDataEx, archive_name_w) == 1024);
+    assert!(offset_of!(HeaderDataEx, filename) == 5120);
+    assert!(offset_of!(HeaderDataEx, filename_w) == 6144);
+    assert!(offset_of!(HeaderDataEx, flags) == 10240);
+    assert!(offset_of!(HeaderDataEx, file_attr) == 10280);
+    // First pointer — this is where `#[repr(C)]` would have inserted 4
+    // bytes of padding; `packed(1)` must not.
+    assert!(offset_of!(HeaderDataEx, comment_buffer) == 10284);
+    assert!(offset_of!(HeaderDataEx, comment_buffer_size) == 10292);
+    assert!(offset_of!(HeaderDataEx, hash) == 10312);
+    assert!(offset_of!(HeaderDataEx, redir_type) == 10344);
+    assert!(offset_of!(HeaderDataEx, redir_name) == 10348);
+    assert!(offset_of!(HeaderDataEx, mtime_low) == 10364);
+    assert!(offset_of!(HeaderDataEx, atime_high) == 10384);
+    assert!(offset_of!(HeaderDataEx, arc_name_ex) == 10388);
+    assert!(offset_of!(HeaderDataEx, file_name_ex_size) == 10408);
+    assert!(offset_of!(HeaderDataEx, reserved) == 10412);
+    assert!(size_of::<HeaderDataEx>() == 14340);
+
+    // OpenArchiveDataEx — packed, pointer=8
+    assert!(offset_of!(OpenArchiveDataEx, archive_name) == 0);
+    assert!(offset_of!(OpenArchiveDataEx, archive_name_w) == 8);
+    assert!(offset_of!(OpenArchiveDataEx, open_mode) == 16);
+    assert!(offset_of!(OpenArchiveDataEx, open_result) == 20);
+    assert!(offset_of!(OpenArchiveDataEx, comment_buffer) == 24);
+    assert!(offset_of!(OpenArchiveDataEx, comment_buffer_size) == 32);
+    assert!(offset_of!(OpenArchiveDataEx, flags) == 44);
+    assert!(offset_of!(OpenArchiveDataEx, callback) == 48);
+    assert!(offset_of!(OpenArchiveDataEx, user_data) == 56);
+    assert!(offset_of!(OpenArchiveDataEx, op_flags) == 64);
+    assert!(offset_of!(OpenArchiveDataEx, comment_buffer_w) == 68);
+    assert!(offset_of!(OpenArchiveDataEx, mark_of_the_web) == 76);
+    assert!(offset_of!(OpenArchiveDataEx, reserved) == 84);
+    assert!(size_of::<OpenArchiveDataEx>() == 176);
+};
 
 // ----------------- BINDINGS ----------------- //
 
@@ -324,7 +390,11 @@ impl Default for HeaderDataEx {
             ctime_high: 0,
             atime_low: 0,
             atime_high: 0,
-            reserved: [0; 988],
+            arc_name_ex: std::ptr::null_mut(),
+            arc_name_ex_size: 0,
+            file_name_ex: std::ptr::null_mut(),
+            file_name_ex_size: 0,
+            reserved: [0; 982],
         }
     }
 }
@@ -383,7 +453,8 @@ impl OpenArchiveDataEx {
             user_data: 0,
             op_flags: 0,
             comment_buffer_w: std::ptr::null_mut(),
-            reserved: [0; 25],
+            mark_of_the_web: std::ptr::null_mut(),
+            reserved: [0; 23],
         }
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "unrar-ng-sys"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
   "Danyel Bayraktar <rust@danyel.io>",
   "ttys3 <41882455+ttys3@users.noreply.github.com>",
@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 description = "FFI bindings to unrar (with minimal abstractions). Actively maintained fork of unrar_sys."
 repository = "https://github.com/ttys3/unrar.rs"
 edition = "2021"
+rust-version = "1.94"
 
 [lib]
 name = "unrar_sys"
