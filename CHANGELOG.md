@@ -6,6 +6,74 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-04-15
+
+
+### <!--1-->Bug Fixes
+
+- <em>(docs)</em> correct link in README for batch extraction performance analysis (<a href="https://github.com/ttys3/unrar.rs/commits/ca53b4858d97c2a5b5df865a5d788ac6590589ce">ca53b48</a>)
+
+### <!--4-->Miscellaneous / Refactors
+
+- <details>
+  <summary><em>(patches)</em> add missing fork patches to patches.txt (<a href="https://github.com/ttys3/unrar.rs/commits/a83e020b3cf3d753d04354178018b268870e35b7">a83e020</a>)</summary>
+  <blockquote>
+
+  Add 5626369 (RARExtractAll/W), 33f57e0 (perf), and a428b77<br>
+  (UCM_EXTRACTFILE callbacks) as full 40-char hashes so that<br>
+  upgrade.sh re-applies the batch-extraction feature chain after<br>
+  future vendor tarball upgrades.<br>
+  <br>
+  Previously these fork modifications were committed directly into<br>
+  vendor/unrar/ without being tracked in patches.txt, so any upgrade<br>
+  would silently delete them (and break the Rust FFI link step).<br>
+  <br>
+  Also reorganize the file with section comments documenting the<br>
+  cherry-pick ordering constraint: the three batch-extraction patches<br>
+  must be applied in order because 33f57e0 and a428b77 modify code<br>
+  added by 5626369.
+  </blockquote>
+  </details>
+
+### <!--7-->Example
+
+- <details>
+  <summary><em>(unrar)</em> update vendored unrar source to 7.2.5 (<a href="https://github.com/ttys3/unrar.rs/commits/0ef97ef1cdefb99a7c8605217af82fb782bda7b5">0ef97ef</a>)</summary>
+  <blockquote>
+
+  Upgrade vendored UnRAR from 7.2.3 to 7.2.5.<br>
+  Source: https://www.rarlab.com/rar/unrarsrc-7.2.5.tar.gz (2026-03-22)<br>
+  <br>
+  All fork patches re-applied successfully via upgrade.sh cherry-pick:<br>
+  - 9d38459 RAROpenArchiveEx BAD_DATA handle fix<br>
+  - 162e1a5 RARReadHeaderEx/ProcessFile thread-safe error reporting<br>
+  - c3b414e __builtin_cpu_supports guard (macOS 15 Intel)<br>
+  - 5626369 RARExtractAll/W batch extraction functions<br>
+  - 33f57e0 RARExtractAllW loop perf optimization<br>
+  - a428b77 UCM_EXTRACTFILE/_OK/_ERR progress callbacks<br>
+  <br>
+  No FFI-layer changes required:<br>
+  - RAR_DLL_VERSION unchanged (still 9)<br>
+  - UNRARCALLBACK_MESSAGES enum: 6 upstream values unchanged, fork's<br>
+    UCM_EXTRACTFILE/_OK/_ERR still appended at positions 6/7/8<br>
+  - RARHeaderDataEx / RAROpenArchiveDataEx C++ struct layout unchanged<br>
+    between 7.2.3 and 7.2.5<br>
+  - build.rs source file list unchanged (85 .cpp files, none added/removed)<br>
+  <br>
+  Verification performed in a throwaway git worktree before touching<br>
+  main, then re-verified on main:<br>
+  - unrar-ng-sys clean build on macOS arm64<br>
+  - unrar-ng clean build with all targets<br>
+  - integration test suites pass: simple, crypted, utf8, multipart,<br>
+    archiveflags (including extract_all_solid_archive and<br>
+    extract_all_to_tempdir which exercise the fork's batch API)<br>
+  - batch_extract example verified on data/unicode-entry.rar:<br>
+    UCM_EXTRACTFILE and UCM_EXTRACTFILE_OK callbacks both fired,<br>
+    file extracted successfully in ~350us
+  </blockquote>
+  </details>
+
+
 ## [0.6.0] - 2026-04-14
 
 
