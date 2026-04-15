@@ -6,6 +6,30 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-04-15
+
+
+### <!--1-->Bug Fixes
+
+- <details>
+  <summary><em>(ffi)</em> match packed C++ struct layout and add missing fields (<a href="https://github.com/ttys3/unrar.rs/commits/dd386e5eb6d7c65386685ba66519f4ba4f6b85f3">dd386e5</a>)</summary>
+  <blockquote>
+
+  The Rust FFI structs in `unrar_sys/src/lib.rs` did not match the C++<br>
+  layout from `vendor/unrar/dll.hpp`, which declares every DLL struct<br>
+  inside `#pragma pack(push, 1)`. Our Rust definitions used plain<br>
+  `#[repr(C)]` with natural alignment, and were also missing several<br>
+  fields that upstream had added in recent UnRAR versions.<br>
+  <br>
+  This was a latent correctness bug that happened to work until now<br>
+  because all high-level Rust code only read fields before the first<br>
+  pointer field, where the two layouts coincidentally agree. Any read<br>
+  of a field after `comment_buffer` — e.g. `hash_type`, `redir_type`,<br>
+  `mtime_low` — returned garbage bytes from the wrong offset.
+  </blockquote>
+  </details>  - **BREAKING**: match packed C++ struct layout and add missing fields
+
+
 ## [0.6.1] - 2026-04-15
 
 
