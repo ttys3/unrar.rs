@@ -42,4 +42,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Test unrar_sys library
-      run: cargo test --verbose --package=unrar_sys
+      run: cargo test --verbose --package=unrar-ng-sys
