@@ -84,21 +84,46 @@ conventional_commits = true
 # filter out the commits that are not conventional
 filter_unconventional = true
 filter_commits = true
+# keep BREAKING commits even if a later parser rule would `skip = true` them
+# (rename release would have been silently dropped without this if a future
+#  rule changes — cheap insurance)
+protect_breaking_commits = true
+# only generate changelog entries for v-prefixed release tags; skip random
+# experimental / personal tags
+tag_pattern = "v[0-9].*"
+# explicit sort order (default is newest, make it visible for future maintainers)
+sort_commits = "newest"
 
+# Order matters — first matching rule wins. Keep example-scoped first so a
+# `feat(example): ...` commit lands in Example rather than Features.
 commit_parsers = [
-  { message = "^fix", group = "<!--1-->Bug Fixes" },
-  { message = "^feat", group = "<!--2-->Features" },
-  { message = "^perf", group = "<!--3-->Performance" },
-  { message = "^test", group = "<!--5-->Testing" },
-  { message = "^doc", group = "<!--6-->Documentation" },
-  { message = ".*example", group = "<!--7-->Example" },
-  { message = "^style", group = "<!--8-->Styling" },
+  # Scope-based: example/examples scope wins over type-based grouping below.
+  { message = "^[a-z]+\\(examples?\\)!?:", group = "<!--7-->Example" },
+
+  # Type-based grouping (conventional commit prefixes).
+  { message = "^fix",      group = "<!--1-->Bug Fixes" },
+  { message = "^feat",     group = "<!--2-->Features" },
+  { message = "^perf",     group = "<!--3-->Performance" },
+  { message = "^test",     group = "<!--5-->Testing" },
+  { message = "^doc",      group = "<!--6-->Documentation" },
+  { message = "^style",    group = "<!--8-->Styling" },
+  { message = "^revert",   group = "<!--9-->Revert" },
+
+  # Skip rules — drop release / PR / pull noise from changelog.
   { message = "^chore\\(release\\): prepare for", skip = true },
-  { message = "^chore\\(pr\\)", skip = true },
+  { message = "^chore\\(pr\\)",   skip = true },
   { message = "^chore\\(pull\\)", skip = true },
   { message = "^.*\\bv[0-9]+\\.", skip = true },
-  { message = "^chore|^ci|^refactor", group = "<!--4-->Miscellaneous / Refactors" },
+
+  # Catch-all for build/ci/chore/refactor — must come after specific skips.
+  { message = "^chore|^ci|^refactor|^build", group = "<!--4-->Miscellaneous / Refactors" },
+
+  # Body-only matchers (e.g. security advisory backports without scoped subjects).
   { body = ".*security", group = "<!--2-->Security" },
-  { message = "^revert", group = "<!--9-->Revert" },
+]
+
+# Auto-link #N issue / PR references in commit messages to GitHub.
+link_parsers = [
+  { pattern = "#(\\d+)", href = "https://github.com/ttys3/unrar.rs/issues/$1" },
 ]
 
