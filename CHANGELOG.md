@@ -67,6 +67,37 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 "Breaking change in 0.7" section for the two supported migration paths
 (clean rename vs. Cargo dep alias).
 
+### Migration from 0.6.x
+
+The library targets were renamed (BREAKING):
+
+- `unrar` → `unrar_ng`
+- `unrar_sys` → `unrar_ng_sys`
+
+The package names (`unrar-ng`, `unrar-ng-sys`) are unchanged. Two migration paths:
+
+**1. Recommended (clean)** — update both `Cargo.toml` and source:
+
+```toml
+[dependencies]
+unrar-ng = "0.7"
+```
+
+```rust
+use unrar_ng::Archive;
+```
+
+**2. Minimal-change** — keep `use unrar::Archive;` source by aliasing the dep:
+
+```toml
+[dependencies]
+unrar = { package = "unrar-ng", version = "0.7" }
+# Only if you also depend on the FFI crate directly:
+unrar_sys = { package = "unrar-ng-sys", version = "0.7" }
+```
+
+Cargo's dep-rename mechanism makes the consumer-side `extern crate` / `use` name follow the dep key, regardless of the dependency's `[lib] name`, so existing `use unrar::Archive;` / `use unrar_sys::*;` lines continue to work under path 2.
+
 
 ## [0.6.2] - 2026-04-15
 
