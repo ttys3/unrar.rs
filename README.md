@@ -72,7 +72,7 @@ The original crate uses the UnRAR DLL's per-file API (`RARReadHeaderEx` + `RARPr
 
 ### Quick Example
 
-```rust
+```rust,no_run
 use unrar_ng::Archive;
 
 let archive = Archive::new("large_archive.rar")
