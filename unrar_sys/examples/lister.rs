@@ -1,6 +1,6 @@
 use libc::{c_int, c_uint};
 use std::str;
-use unrar_sys::*;
+use unrar_ng_sys::*;
 
 use std::ffi::{CStr, CString};
 use std::fs;

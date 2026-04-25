@@ -22,7 +22,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 use std::path::Path;
 use tempfile::TempDir;
-use unrar::Archive;
+use unrar_ng::Archive;
 
 /// Extract archive using per-file iteration (the traditional approach)
 fn extract_per_file(archive_path: &Path, dest: &Path) -> Result<usize, Box<dyn std::error::Error>> {

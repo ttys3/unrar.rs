@@ -9,13 +9,13 @@ pub(crate) fn construct<P: AsRef<std::path::Path>>(path: P) -> RarString {
 }
 
 pub(crate) fn process_file(
-    handle: *const unrar_sys::Handle,
+    handle: *const unrar_ng_sys::Handle,
     operation: i32,
     dest_path: Option<&RarStr>,
     dest_name: Option<&RarStr>,
 ) -> i32 {
     unsafe {
-        unrar_sys::RARProcessFile(
+        unrar_ng_sys::RARProcessFile(
             handle,
             operation,
             dest_path.map(|path| path.as_ptr().cast()).unwrap_or(std::ptr::null()),
@@ -32,11 +32,11 @@ pub(crate) fn preprocess_extract(
 }
 
 pub(crate) fn extract_all(
-    handle: *const unrar_sys::Handle,
+    handle: *const unrar_ng_sys::Handle,
     dest_path: &RarStr,
 ) -> i32 {
     unsafe {
-        unrar_sys::RARExtractAll(
+        unrar_ng_sys::RARExtractAll(
             handle,
             dest_path.as_ptr().cast(),
         )

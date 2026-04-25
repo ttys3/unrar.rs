@@ -228,7 +228,7 @@ impl<Mode: OpenMode, C: Cursor> OpenArchive<Mode, C> {
     /// # Example how you *might* use this
     ///
     /// ```no_run
-    /// use unrar::{Archive, error::{When, Code}};
+    /// use unrar_ng::{Archive, error::{When, Code}};
     ///
     /// let mut archive = Archive::new("corrupt.rar").open_for_listing().expect("archive error");
     /// loop {
@@ -299,7 +299,7 @@ impl<Mode: OpenMode> OpenArchive<Mode, CursorBeforeHeader> {
     /// Basic usage:
     ///
     /// ```
-    /// let archive = unrar::Archive::new("data/version.rar").open_for_listing().unwrap().read_header();
+    /// let archive = unrar_ng::Archive::new("data/version.rar").open_for_listing().unwrap().read_header();
     /// assert!(archive.as_ref().is_ok_and(Option::is_some));
     /// let archive = archive.unwrap().unwrap();
     /// assert_eq!(archive.entry().filename.as_os_str(), "VERSION");
@@ -330,7 +330,7 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     /// # Example
     ///
     /// ```no_run
-    /// use unrar::Archive;
+    /// use unrar_ng::Archive;
     ///
     /// let archive = Archive::new("archive.rar")
     ///     .open_for_processing()
@@ -366,7 +366,7 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     /// # Example
     ///
     /// ```no_run
-    /// use unrar::{Archive, ExtractEvent};
+    /// use unrar_ng::{Archive, ExtractEvent};
     ///
     /// let archive = Archive::new("archive.rar")
     ///     .open_for_processing()

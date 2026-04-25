@@ -14,7 +14,7 @@ edition = "2021"
 rust-version = "1.94"
 
 [lib]
-name = "unrar_sys"
+name = "unrar_ng_sys"
 
 [features]
 default = ["std"]

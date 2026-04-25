@@ -1,5 +1,5 @@
 //! Regression tests that exercise the `#[repr(C, packed(1))]` layout of
-//! `unrar_sys::HeaderDataEx` by reading fields that sit **after** the first
+//! `unrar_ng_sys::HeaderDataEx` by reading fields that sit **after** the first
 //! pointer field in the struct.
 //!
 //! Before the layout fix, the Rust FFI structs used `#[repr(C)]` with natural
@@ -9,8 +9,8 @@
 //! than the DLL writes to, so any Rust code that read a post-divergence
 //! field got garbage data.
 //!
-//! These tests use the low-level `unrar_sys` FFI directly (not the
-//! high-level `unrar` crate) to read fields like `hash_type`, `dict_size`,
+//! These tests use the low-level `unrar_ng_sys` FFI directly (not the
+//! high-level `unrar_ng` crate) to read fields like `hash_type`, `dict_size`,
 //! `mtime_low` and `ctime_low` — all of which live past the first pointer
 //! and would return garbage on the broken layout. With the packed layout
 //! fix, they return values in their documented ranges.
@@ -18,7 +18,7 @@
 #[cfg(any(target_os = "linux", target_os = "netbsd"))]
 use std::ffi::CString;
 
-use unrar_sys as sys;
+use unrar_ng_sys as sys;
 
 /// Convert an ASCII path to a null-terminated `wchar_t` buffer. Sufficient
 /// for our test fixtures which are all ASCII-only paths under `data/`.

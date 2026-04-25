@@ -1,5 +1,5 @@
 use std::io::Write;
-use unrar::{Archive, ListSplit};
+use unrar_ng::{Archive, ListSplit};
 
 fn main() {
     // Basic args parsing

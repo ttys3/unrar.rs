@@ -1,5 +1,5 @@
-use unrar::Archive;
-use unrar::VolumeInfo;
+use unrar_ng::Archive;
+use unrar_ng::VolumeInfo;
 
 #[test]
 fn volume() {

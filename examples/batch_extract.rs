@@ -12,7 +12,7 @@ use std::env;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process;
-use unrar::{Archive, ExtractEvent};
+use unrar_ng::{Archive, ExtractEvent};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

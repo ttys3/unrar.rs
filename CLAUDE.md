@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`unrar-ng` — actively-maintained fork of the [`unrar`](https://crates.io/crates/unrar) crate. Published as `unrar-ng` but the `lib name` is still `unrar`, so downstream `use unrar::Archive;` keeps working. The headline feature over upstream is the batch extraction API (`OpenArchive::extract_all` / `extract_all_with_callback`), which matches native `unrar x` CLI throughput and is ~5.6x faster than the per-file API for archives with many small files.
+`unrar-ng` — actively-maintained fork of the [`unrar`](https://crates.io/crates/unrar) crate. From 0.7 the `[lib] name` is aligned with the package name: `unrar_ng` for the high-level crate and `unrar_ng_sys` for the FFI crate. Downstream code uses `use unrar_ng::Archive;` directly; users who need to keep `use unrar::Archive;` source compatibility can alias the dep (`unrar = { package = "unrar-ng", version = "0.7" }`). 0.6.x kept the upstream lib name `unrar` / `unrar_sys` as a drop-in transitional alias, but that conflicted with the upstream crates in shared dep graphs, so 0.7 made the rename explicit. The headline feature over upstream is the batch extraction API (`OpenArchive::extract_all` / `extract_all_with_callback`), which matches native `unrar x` CLI throughput and is ~5.6x faster than the per-file API for archives with many small files.
 
 Two crates (connected by a `path` dependency — there is no Cargo `[workspace]`):
 
-- `unrar-ng` (root `Cargo.toml`) — high-level safe wrapper.
-- `unrar-ng-sys` (`unrar_sys/`) — `#![no_std]` FFI crate (with a default `std` feature) that statically links the vendored UnRAR C++ source (`unrar_sys/vendor/unrar/`) compiled via the `cc` crate in `unrar_sys/build.rs`.
+- `unrar-ng` (root `Cargo.toml`, lib `unrar_ng`) — high-level safe wrapper.
+- `unrar-ng-sys` (`unrar_sys/`, lib `unrar_ng_sys`) — `#![no_std]` FFI crate (with a default `std` feature) that statically links the vendored UnRAR C++ source (`unrar_sys/vendor/unrar/`) compiled via the `cc` crate in `unrar_sys/build.rs`.
 
 MSRV: `1.94` (both crates).
 
@@ -23,9 +23,10 @@ cargo build
 cargo test
 
 # Only the low-level FFI crate. The `--package` value is the Cargo package
-# name (`unrar-ng-sys`), NOT the `lib` name `unrar_sys` which is only what
-# you `use` from Rust — passing `--package=unrar_sys` errors out with
-# "package ID specification did not match any packages".
+# name (`unrar-ng-sys`, with hyphens), NOT the `lib` name `unrar_ng_sys`
+# (with underscores, which is only what you `use` from Rust) — passing
+# `--package=unrar_ng_sys` errors out with "package ID specification did
+# not match any packages".
 cargo test --package=unrar-ng-sys
 
 # Run a single integration test
@@ -62,7 +63,7 @@ RAR DLL path APIs come in narrow-char and wide-char flavors, and the right choic
 - **Linux / NetBSD** (`pathed/linux.rs`): uses `CString` + `RARProcessFile` / `RARExtractAll` (8-bit). Wide-char extraction of Unicode filenames into a directory is broken on Linux upstream, so the Linux path constructs the *full* destination path instead of passing a base directory.
 - **Everything else — macOS, Windows, other BSDs** (`pathed/all.rs`): uses `WideCString` + `RARProcessFileW` / `RARExtractAllW`.
 
-`OpenArchiveDataEx::new` in `unrar_sys/src/lib.rs` has the mirror split (`*const c_char` on Linux/NetBSD, `*const wchar_t` elsewhere). When adding anything FFI path-related, the change has to land in both `pathed/linux.rs` and `pathed/all.rs`.
+`OpenArchiveDataEx::new` in `unrar_sys/src/lib.rs` (lib `unrar_ng_sys`) has the mirror split (`*const c_char` on Linux/NetBSD, `*const wchar_t` elsewhere). When adding anything FFI path-related, the change has to land in both `pathed/linux.rs` and `pathed/all.rs`.
 
 ### FFI layout — `#[repr(C, packed(1))]` is mandatory
 
@@ -89,5 +90,5 @@ To upgrade to a new UnRAR release, run `./unrar_sys/vendor/upgrade.sh <tarball-u
 ## Release / changelog
 
 - Changelog is **auto-generated** by `git-cliff` using `cliff.toml` — do not edit `CHANGELOG.md` by hand. Commits must follow Conventional Commits or they're filtered out (`filter_unconventional = true`).
-- `unrar-ng` and `unrar-ng-sys` are version-locked at the same `X.Y.Z`. A single bump has to update **four** places across two `Cargo.toml` files: root `[package].version`, root `[dependencies.unrar_sys].version`, root `[dev-dependencies].unrar_sys.version`, and `unrar_sys/Cargo.toml` `[package].version`. Use `/bump-version` — it handles all four.
-- `unrar_sys` is also declared as a **dev-dependency** of the root crate (with the same `package = "unrar-ng-sys"` re-aliasing) purely so that `tests/packed_layout.rs` can `use unrar_sys::*` to hit the raw FFI — integration tests only see what the library re-exports, and the main crate deliberately does not re-export `unrar_sys`.
+- `unrar-ng` and `unrar-ng-sys` are version-locked at the same `X.Y.Z`. A single bump has to update **four** places across two `Cargo.toml` files: root `[package].version`, root `[dependencies.unrar_ng_sys].version`, root `[dev-dependencies].unrar_ng_sys.version`, and `unrar_sys/Cargo.toml` `[package].version`. Use `/bump-version` — it handles all four.
+- `unrar_ng_sys` is also declared as a **dev-dependency** of the root crate (with the same `package = "unrar-ng-sys"` re-aliasing) purely so that `tests/packed_layout.rs` can `use unrar_ng_sys::*` to hit the raw FFI — integration tests only see what the library re-exports, and the main crate deliberately does not re-export `unrar_ng_sys`.

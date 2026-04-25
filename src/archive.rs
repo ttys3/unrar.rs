@@ -121,7 +121,7 @@ impl<'a> Archive<'a> {
     /// Basic usage (multipart archive):
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let glob = Archive::new("path/my.archive.part01.rar").all_parts_option();
     ///
@@ -130,7 +130,7 @@ impl<'a> Archive<'a> {
     ///
     /// Single part archive:
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// let glob = Archive::new("path/my.archive.rar").all_parts_option();
     ///
     /// assert_eq!(glob, None);
@@ -167,7 +167,7 @@ impl<'a> Archive<'a> {
     /// Basic usage (multipart archive):
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let glob = Archive::new("path/my.archive.part01.rar").all_parts();
     ///
@@ -176,7 +176,7 @@ impl<'a> Archive<'a> {
     ///
     /// Single part archive:
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let glob = Archive::new("path/my.archive.rar").all_parts();
     ///
@@ -199,7 +199,7 @@ impl<'a> Archive<'a> {
     /// Simple usage:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let part42 = Archive::new("path/my.archive.part01.rar").nth_part(42).unwrap();
     ///
@@ -209,7 +209,7 @@ impl<'a> Archive<'a> {
     /// Returns None for single-part archives:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// let part42 = Archive::new("path/my.archive.rar").nth_part(42);
     ///
     /// assert_eq!(part42, None);
@@ -249,7 +249,7 @@ impl<'a> Archive<'a> {
     /// Simple usage:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let part1 = Archive::new("path/my.archive.part42.rar").first_part_option().unwrap();
     ///
@@ -259,7 +259,7 @@ impl<'a> Archive<'a> {
     /// Returns None for single-part archives:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// let part1 = Archive::new("path/my.archive.rar").first_part_option();
     ///
     /// assert_eq!(part1, None);
@@ -278,7 +278,7 @@ impl<'a> Archive<'a> {
     /// Basic usage:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let part1 = Archive::new("path/archive.part33.rar").first_part();
     ///
@@ -288,7 +288,7 @@ impl<'a> Archive<'a> {
     /// Single part archive:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let part1 = Archive::new("path/archive.rar").first_part();
     ///
@@ -299,7 +299,7 @@ impl<'a> Archive<'a> {
     /// if a first part could not be found:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let part1 = Archive::new("https://gibberish").first_part();
     ///
@@ -322,7 +322,7 @@ impl<'a> Archive<'a> {
     /// Basic usage:
     ///
     /// ```
-    /// # use unrar::Archive;
+    /// # use unrar_ng::Archive;
     /// # use std::path::PathBuf;
     /// let mut archive = Archive::new("path/some.004.rar").as_first_part();
     /// assert_eq!(archive.filename(), PathBuf::from("path/some.001.rar"));
@@ -394,7 +394,7 @@ impl<'a> Archive<'a> {
     /// # Example: I don't care if there was a recoverable error
     ///
     /// ```no_run
-    /// # use unrar::{Archive, List, UnrarResult};
+    /// # use unrar_ng::{Archive, List, UnrarResult};
     /// # fn x() -> UnrarResult<()> {
     /// let mut open_archive = Archive::new("file").break_open::<List>(None)?;
     /// // use open_archive
@@ -405,7 +405,7 @@ impl<'a> Archive<'a> {
     /// # Example: I want to know if there was a recoverable error
     ///
     /// ```no_run
-    /// # use unrar::{Archive, List, UnrarResult};
+    /// # use unrar_ng::{Archive, List, UnrarResult};
     /// # fn x() -> UnrarResult<()> {
     /// let mut possible_error = None;
     /// let mut open_archive = Archive::new("file").break_open::<List>(Some(&mut possible_error))?;

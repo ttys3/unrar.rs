@@ -13,10 +13,36 @@
 >
 > ```toml
 > [dependencies]
-> unrar = { package = "unrar-ng", version = "0.5" }
+> unrar-ng = "0.7"
 > ```
 >
-> Your existing `use unrar::Archive;` code keeps working unchanged.
+> Then `use unrar_ng::Archive;` in your code.
+>
+> ### Breaking change in 0.7
+>
+> The library targets were renamed: `unrar` → `unrar_ng`, `unrar_sys` → `unrar_ng_sys`. Code written against 0.6.x using `use unrar::Archive;` no longer compiles by default. Two migration paths:
+>
+> **1. Recommended (clean)** — update both Cargo.toml and source:
+>
+> ```toml
+> [dependencies]
+> unrar-ng = "0.7"
+> ```
+>
+> ```rust
+> use unrar_ng::Archive;
+> ```
+>
+> **2. Minimal-change** — keep `use unrar::Archive;` source by aliasing the dep:
+>
+> ```toml
+> [dependencies]
+> unrar = { package = "unrar-ng", version = "0.7" }
+> # Only if you also depend on the FFI crate directly:
+> unrar_sys = { package = "unrar-ng-sys", version = "0.7" }
+> ```
+>
+> Cargo's dep-rename mechanism makes the consumer-side `extern crate` / `use` name follow the dep key, regardless of the dependency's `[lib] name`, so existing `use unrar::Archive;` / `use unrar_sys::*;` lines continue to work.
 
 High-level wrapper around the unrar C library provided by [rarlab](http://rarlab.com).
 
@@ -47,7 +73,7 @@ The original crate uses the UnRAR DLL's per-file API (`RARReadHeaderEx` + `RARPr
 ### Quick Example
 
 ```rust
-use unrar::Archive;
+use unrar_ng::Archive;
 
 let archive = Archive::new("large_archive.rar")
     .open_for_processing()
@@ -65,7 +91,7 @@ Specifically the [**lister**](./examples/lister.rs) example is well documented a
 Basic example to list archive entries:
 
 ```rust,no_run
-use unrar::Archive;
+use unrar_ng::Archive;
 
 fn main() {
     for entry in Archive::new("archive.rar").open_for_listing().unwrap() {
@@ -158,7 +184,7 @@ fn first_file_content<P: AsRef<Path>>(path: P) -> UnrarResult<Vec<u8>> {
     Ok(data)
 }
 # use std::path::Path;
-# use unrar::{Archive, UnrarResult};
+# use unrar_ng::{Archive, UnrarResult};
 #
 # let data = first_file_content("data/version.rar").unwrap();
 # assert_eq!(std::str::from_utf8(&data), Ok("unrar-0.4.0"));
@@ -170,8 +196,8 @@ fn first_file_content<P: AsRef<Path>>(path: P) -> UnrarResult<Vec<u8>> {
 [`extract`]: OpenArchive::extract
 [`extract_to`]: OpenArchive::extract_to
 [`extract_with_base`]: OpenArchive::extract_with_base
-[`ReadHeader`]: unrar_sys::RARReadHeaderEx
-[`ProcessFile`]: unrar_sys::RARProcessFileW
+[`ReadHeader`]: unrar_ng_sys::RARReadHeaderEx
+[`ProcessFile`]: unrar_ng_sys::RARProcessFileW
 
 # Features
 

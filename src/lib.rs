@@ -2,7 +2,7 @@
 #![warn(missing_docs)]
 
 pub use archive::Archive;
-use unrar_sys as native;
+use unrar_ng_sys as native;
 mod archive;
 pub mod error;
 mod pathed;

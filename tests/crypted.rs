@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use unrar::error::{Code, When};
-use unrar::Archive;
+use unrar_ng::error::{Code, When};
+use unrar_ng::Archive;
 
 #[test]
 fn list() {

@@ -3,7 +3,7 @@ use std::fs;
 
 #[test]
 fn version_list() {
-    let mut archive = unrar::Archive::new("data/version.rar")
+    let mut archive = unrar_ng::Archive::new("data/version.rar")
         .open_for_listing()
         .unwrap();
     assert_eq!(
@@ -14,7 +14,7 @@ fn version_list() {
 
 #[test]
 fn version_cat() {
-    let bytes = unrar::Archive::new("data/version.rar")
+    let bytes = unrar_ng::Archive::new("data/version.rar")
         .open_for_processing()
         .unwrap()
         .read_header()
@@ -31,7 +31,7 @@ fn version_cat() {
 fn extract_to_tempdir() {
     // see https://github.com/muja/unrar.rs/issues/34
     let file = "data/version.rar".to_owned();
-    let mut archive = unrar::Archive::new(&file).open_for_processing().expect("open archive");
+    let mut archive = unrar_ng::Archive::new(&file).open_for_processing().expect("open archive");
     let temp_path = tempfile::tempdir().expect("creating tempdir");
     let temp_path = temp_path.path();
     while let Some(header) = archive.read_header().expect("read header") {
@@ -47,7 +47,7 @@ fn extract_to_tempdir() {
 fn extract_all_to_tempdir() {
     // Test the batch extraction function
     let file = "data/version.rar".to_owned();
-    let archive = unrar::Archive::new(&file).open_for_processing().expect("open archive");
+    let archive = unrar_ng::Archive::new(&file).open_for_processing().expect("open archive");
     let temp_path = tempfile::tempdir().expect("creating tempdir");
     let temp_path_ref = temp_path.path();
     
@@ -71,7 +71,7 @@ fn extract_all_to_tempdir() {
 fn extract_all_solid_archive() {
     // Test batch extraction with solid archive
     let file = "data/solid.rar".to_owned();
-    let archive = unrar::Archive::new(&file).open_for_processing().expect("open archive");
+    let archive = unrar_ng::Archive::new(&file).open_for_processing().expect("open archive");
     let temp_path = tempfile::tempdir().expect("creating tempdir");
     let temp_path_ref = temp_path.path();
     

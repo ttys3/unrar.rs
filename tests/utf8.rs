@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use unrar::Archive;
+use unrar_ng::Archive;
 
 #[test]
 fn unicode_list() {

@@ -1,4 +1,4 @@
-use unrar::Archive;
+use unrar_ng::Archive;
 
 fn main() {
     // Basic args parsing
