@@ -1,6 +1,6 @@
 [package]
 name = "unrar-ng"
-version = "0.6.2"
+version = "0.7.0"
 authors = [
   "Danyel Bayraktar <rust@danyel.io>",
   "vjoki <vjoki@zv.fi>",
@@ -33,14 +33,14 @@ widestring = "1"
 [dependencies.unrar_ng_sys]
 path = "unrar_sys"
 package = "unrar-ng-sys"
-version = "0.6.2"
+version = "0.7.0"
 
 [dev-dependencies]
 tempfile = "3.12.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 # Direct dev-dep so the packed-layout regression test in tests/packed_layout.rs
 # can call the raw FFI (otherwise integration tests cannot `use unrar_ng_sys::*`).
-unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.6.2" }
+unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.7.0" }
 
 [[bench]]
 name = "extract_benchmark"

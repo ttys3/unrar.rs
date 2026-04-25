@@ -6,7 +6,82 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-25
+
+
+### <!--1-->Bug Fixes
+
+- <details>
+  <summary><em>(docs)</em> mark README Quick Example as no_run (<a href="https://github.com/ttys3/unrar.rs/commits/1bb58ce7d3fdcf9dbb02d2d7e51b3996ee914123">1bb58ce</a>)</summary>
+  <blockquote>
+
+  The Quick Example code block in README.md uses a fictional<br>
+  `large_archive.rar` purely to illustrate API shape. Without<br>
+  `no_run`, rustdoc compiles AND runs it, which panics at<br>
+  `Archive::new("large_archive.rar").open_for_processing()`<br>
+  because the file does not exist. The block has been broken since<br>
+  it was added in f97b419; mark it `no_run` to match its intent<br>
+  (matching the basic_list example a few lines above which already<br>
+  uses `no_run` for the same reason).
+  </blockquote>
+  </details>
+- <em>(lister)</em> correct assertion for OpenArchiveData open_result handling (<a href="https://github.com/ttys3/unrar.rs/commits/be1d5a2734c7af764f82e4a3fd04c8c1162fb82e">be1d5a2</a>)
+
+### <!--4-->Miscellaneous / Refactors
+
+- update package name for unrar_sys tests to unrar-ng-sys (<a href="https://github.com/ttys3/unrar.rs/commits/84c4dedae5f4b04f8d7def20434b3bfe5e4fe11a">84c4ded</a>)
+
+### <!--6-->Documentation
+
+- <details>
+  <summary>add CLAUDE.md for project guidance and common commands (<a href="https://github.com/ttys3/unrar.rs/commits/77a9951613d34e612327900ed39b9a533464717f">77a9951</a>)</summary>
+  <blockquote>
+
+  This new documentation file provides an overview of the `unrar-ng` project, including its architecture, common commands for building and testing, and details on the vendored UnRAR source. It aims to assist developers in understanding and working with the codebase effectively.
+  </blockquote>
+  </details>
+
+### <!--7-->Example
+
+- <details>
+  <summary>rename library targets to unrar_ng / unrar_ng_sys (<a href="https://github.com/ttys3/unrar.rs/commits/09f4a229faa743ce6258e43cca35ddea3f09157c">09f4a22</a>)</summary>
+  <blockquote>
+
+  Rename `[lib] name` from `unrar` / `unrar_sys` to `unrar_ng` / `unrar_ng_sys`<br>
+  to match the published package names and avoid lib-name collisions when<br>
+  downstream crates pull in both upstream `unrar` / `unrar-sys` and this fork.<br>
+  <br>
+  - Cargo manifests: [lib] name fields and the root crate's dep alias key<br>
+    (both [dependencies] and [dev-dependencies])<br>
+  - Source: src/{lib,archive,open_archive,pathed/all,pathed/linux}.rs and<br>
+    tests/packed_layout.rs<br>
+  - Tests / examples / benches: all `use unrar::*` -> `use unrar_ng::*`,<br>
+    `use unrar_sys::*` -> `use unrar_ng_sys::*`<br>
+  - Doc comments and README code blocks updated; docs.rs module path is now<br>
+    /unrar_ng/ instead of /unrar/.<br>
+  - CLAUDE.md updated to describe the new naming and the dep-alias migration<br>
+    path; CI workflow step name aligned with package name.
+  </blockquote>
+  </details>  - **BREAKING**: The library names changed. `use unrar::...` and
+`use unrar_sys::...` no longer compile by default. See the README's
+"Breaking change in 0.7" section for the two supported migration paths
+(clean rename vs. Cargo dep alias).
+
+
 ## [0.6.2] - 2026-04-15
+
+Release v0.6.2 — FFI struct layout fix
+
+Fixes a latent correctness bug where the Rust FFI structs in
+unrar_sys did not match the C++ packed (#pragma pack(1)) layout from
+dll.hpp. Also adds the 4+1 missing fields for long-path output
+buffers (ArcNameEx, FileNameEx) and Windows MOTW propagation
+(MarkOfTheWeb), and introduces compile-time offset/size assertions
+so future drift becomes a hard compile error.
+
+MSRV bumped to Rust 1.94.
+
+See CHANGELOG.md for full details.
 
 
 ### <!--1-->Bug Fixes
@@ -31,6 +106,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 ## [0.6.1] - 2026-04-15
+
+Release v0.6.1 — vendored UnRAR 7.2.5
+
+Patch release bumping the vendored UnRAR C++ source from 7.2.3 to
+7.2.5. No Rust API or FFI changes. All fork patches
+(RARExtractAll/W batch extraction, thread-safety fixes, UCM_EXTRACTFILE
+progress callbacks, macOS 15 Intel build fix) preserved.
+
+See CHANGELOG.md for full details.
 
 
 ### <!--1-->Bug Fixes
@@ -99,6 +183,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 ## [0.6.0] - 2026-04-14
+
+Release v0.6.0 — first feature release of the unrar-ng fork
+
+Ships new batch extraction API (extract_all / extract_all_with_callback)
+backed by RARExtractAllW, delivering 5.6x speedup over the per-file API
+on archives with many small files. Also includes thread-safety fixes,
+progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
 
 
 ### <!--1-->Bug Fixes
@@ -250,29 +341,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 This release fixes compilation errors for NetBSD
 
-Issues: [#65](https://github.com/muja/unrar.rs/issues/65)
+Issues: [#65](https://github.com/ttys3/unrar.rs/issues/65)
 
 ### <!--1-->Bug Fixes
 
-- <em>(netbsd)</em> use libstd++ on netbsd as libc++ is not available (<a href="https://github.com/muja/unrar.rs/commits/8d29b6e83a171fa72a8f253e0c7ad518a73e4e22">8d29b6e</a>, <a href="https://github.com/muja/unrar.rs/issues/65">#65</a>)
+- <em>(netbsd)</em> use libstd++ on netbsd as libc++ is not available (<a href="https://github.com/ttys3/unrar.rs/commits/8d29b6e83a171fa72a8f253e0c7ad518a73e4e22">8d29b6e</a>, <a href="https://github.com/ttys3/unrar.rs/issues/65">#65</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(changelog)</em> include dependency updates in changelog (<a href="https://github.com/muja/unrar.rs/commits/efdf4e2951672ed5440a2a157ef5d560e1759a2b">efdf4e2</a>)
-- <em>(deps)</em> upgrade bitflags to v2 (<a href="https://github.com/muja/unrar.rs/commits/22a065bbf9c99eb01c8d5610626dc7656be1d79c">22a065b</a>)
-- remove macos 12 from matrix (<a href="https://github.com/muja/unrar.rs/commits/b4756903711498092f20215d58a04f3633616677">b475690</a>)
+- <em>(changelog)</em> include dependency updates in changelog (<a href="https://github.com/ttys3/unrar.rs/commits/efdf4e2951672ed5440a2a157ef5d560e1759a2b">efdf4e2</a>)
+- <em>(deps)</em> upgrade bitflags to v2 (<a href="https://github.com/ttys3/unrar.rs/commits/22a065bbf9c99eb01c8d5610626dc7656be1d79c">22a065b</a>)
+- remove macos 12 from matrix (<a href="https://github.com/ttys3/unrar.rs/commits/b4756903711498092f20215d58a04f3633616677">b475690</a>)
 
 
 ## [0.5.7] - 2024-12-04
 
 This release fixes extraction of entries with unicode filenames inside RAR archives
 
-Issues: [#44](https://github.com/muja/unrar.rs/issues/44)
+Issues: [#44](https://github.com/ttys3/unrar.rs/issues/44)
 
 ### <!--1-->Bug Fixes
 
 - <details>
-  <summary><em>(extract)</em> unicode files on Linux (<a href="https://github.com/muja/unrar.rs/commits/5e6b83d91982234d3686b235dcbc7989402a88fd">5e6b83d</a>, <a href="https://github.com/muja/unrar.rs/issues/44">#44</a>)</summary>
+  <summary><em>(extract)</em> unicode files on Linux (<a href="https://github.com/ttys3/unrar.rs/commits/5e6b83d91982234d3686b235dcbc7989402a88fd">5e6b83d</a>, <a href="https://github.com/ttys3/unrar.rs/issues/44">#44</a>)</summary>
   <blockquote>
 
   Unicode files being extracted to directories still caused issues on Linux.<br>
@@ -284,19 +375,19 @@ Issues: [#44](https://github.com/muja/unrar.rs/issues/44)
 
 ### <!--8-->Styling
 
-- <em>(sys)</em> function-based cfg for better readability (<a href="https://github.com/muja/unrar.rs/commits/1d9e4133b9de7f2402c37d7d41a3564a8008eddc">1d9e413</a>)
+- <em>(sys)</em> function-based cfg for better readability (<a href="https://github.com/ttys3/unrar.rs/commits/1d9e4133b9de7f2402c37d7d41a3564a8008eddc">1d9e413</a>)
 
 
 ## [0.5.6] - 2024-09-01
 
 This release fixes a reported Windows build error for different locales
 
-Issues: [#56](https://github.com/muja/unrar.rs/issues/56)
+Issues: [#56](https://github.com/ttys3/unrar.rs/issues/56)
 
 ### <!--1-->Bug Fixes
 
 - <details>
-  <summary><em>(dll)</em> remove invalid unicode in code comment (<a href="https://github.com/muja/unrar.rs/commits/7db15f7346050feae8aaa574d172fac33c52bbf1">7db15f7</a>, <a href="https://github.com/muja/unrar.rs/issues/56">#56</a>)</summary>
+  <summary><em>(dll)</em> remove invalid unicode in code comment (<a href="https://github.com/ttys3/unrar.rs/commits/7db15f7346050feae8aaa574d172fac33c52bbf1">7db15f7</a>, <a href="https://github.com/ttys3/unrar.rs/issues/56">#56</a>)</summary>
   <blockquote>
 
   msvc compliler (under some windows system) complains about "undefined identifier Flags" due to invalid chars,<br>
@@ -306,8 +397,8 @@ Issues: [#56](https://github.com/muja/unrar.rs/issues/56)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(dll)</em> add patch for unicode removal (<a href="https://github.com/muja/unrar.rs/commits/be073b48c0c1dfea0e072875f634ce77e3100d84">be073b4</a>)
-- <em>(release)</em> link to issues and commits in changelog (<a href="https://github.com/muja/unrar.rs/commits/e9c3101e412a472783c4f44ac4defcf98a0b35b3">e9c3101</a>)
+- <em>(dll)</em> add patch for unicode removal (<a href="https://github.com/ttys3/unrar.rs/commits/be073b48c0c1dfea0e072875f634ce77e3100d84">be073b4</a>)
+- <em>(release)</em> link to issues and commits in changelog (<a href="https://github.com/ttys3/unrar.rs/commits/e9c3101e412a472783c4f44ac4defcf98a0b35b3">e9c3101</a>)
 
 
 ## [0.5.5] - 2024-08-31
@@ -317,19 +408,19 @@ Re-release because 0.5.4 had a dependency mistake
 
 ### <!--1-->Bug Fixes
 
-- correctly update unrar_sys version (<a href="https://github.com/muja/unrar.rs/commits/a97112a770c2537cfebcd203c2064407bf9db610">a97112a</a>)
+- correctly update unrar_sys version (<a href="https://github.com/ttys3/unrar.rs/commits/a97112a770c2537cfebcd203c2064407bf9db610">a97112a</a>)
 
 
 ## [0.5.4] - 2024-08-31
 
 This release fixes the long standing unicode filename bug on Linux, as well as as the recent tempdir bug on macOS.
 
-Issues: [#34](https://github.com/muja/unrar.rs/issues/34), [#44](https://github.com/muja/unrar.rs/issues/44)
+Issues: [#34](https://github.com/ttys3/unrar.rs/issues/34), [#44](https://github.com/ttys3/unrar.rs/issues/44)
 
 ### <!--1-->Bug Fixes
 
 - <details>
-  <summary>unicode filenames on Linux (<a href="https://github.com/muja/unrar.rs/commits/f3fb23d6fd89f577703a64a8344877dfd264a7ae">f3fb23d</a>, <a href="https://github.com/muja/unrar.rs/issues/44">#44</a>)</summary>
+  <summary>unicode filenames on Linux (<a href="https://github.com/ttys3/unrar.rs/commits/f3fb23d6fd89f577703a64a8344877dfd264a7ae">f3fb23d</a>, <a href="https://github.com/ttys3/unrar.rs/issues/44">#44</a>)</summary>
   <blockquote>
 
   This bug caused CJK chars in filename to be stripped out on Linux.
@@ -355,33 +446,33 @@ Issues: [#34](https://github.com/muja/unrar.rs/issues/34), [#44](https://github.
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(dll)</em> upgrade unrar source code version to 7.0.9 (<a href="https://github.com/muja/unrar.rs/commits/8992d51988c3a2705447ed9bdca44669eeb83391">8992d51</a>)
+- <em>(dll)</em> upgrade unrar source code version to 7.0.9 (<a href="https://github.com/ttys3/unrar.rs/commits/8992d51988c3a2705447ed9bdca44669eeb83391">8992d51</a>)
 - <details>
-  <summary><em>(dll)</em> fix build by avoiding call to __builtin_cpu_supports (<a href="https://github.com/muja/unrar.rs/commits/c3b414e28f87f06df43d6ab91220faf1647f7433">c3b414e</a>)</summary>
+  <summary><em>(dll)</em> fix build by avoiding call to __builtin_cpu_supports (<a href="https://github.com/ttys3/unrar.rs/commits/c3b414e28f87f06df43d6ab91220faf1647f7433">c3b414e</a>)</summary>
   <blockquote>
 
   This fixes the ___cpu_model undefined error on macOS 12 and macOS 13<br>
   confirmed macOS 14 does not have this issue
   </blockquote>
   </details>
-- <em>(dll)</em> update patches (<a href="https://github.com/muja/unrar.rs/commits/801318a6034a4f6918eec00c635f994a14219661">801318a</a>)
-- <em>(release)</em> fancy release notes (<a href="https://github.com/muja/unrar.rs/commits/53ba119d7096de7117898257068c3360deda44c8">53ba119</a>)
+- <em>(dll)</em> update patches (<a href="https://github.com/ttys3/unrar.rs/commits/801318a6034a4f6918eec00c635f994a14219661">801318a</a>)
+- <em>(release)</em> fancy release notes (<a href="https://github.com/ttys3/unrar.rs/commits/53ba119d7096de7117898257068c3360deda44c8">53ba119</a>)
 - <details>
-  <summary>remove macos-11 due to it does not supported by github anymore, add macOS 13  and macOS 14 support (<a href="https://github.com/muja/unrar.rs/commits/3c37105a1561846029868f9f56729c9b571f5bac">3c37105</a>)</summary>
+  <summary>remove macos-11 due to it does not supported by github anymore, add macOS 13  and macOS 14 support (<a href="https://github.com/ttys3/unrar.rs/commits/3c37105a1561846029868f9f56729c9b571f5bac">3c37105</a>)</summary>
   <blockquote>
 
   see https://github.blog/changelog/2024-05-20-actions-upcoming-changes-to-github-hosted-macos-runners/#macos-11-deprecation-and-removal
   </blockquote>
   </details>
-- add workflow_dispatch event (<a href="https://github.com/muja/unrar.rs/commits/254025c67868f188e8ef8bb6297ad81c4dcd784f">254025c</a>)
+- add workflow_dispatch event (<a href="https://github.com/ttys3/unrar.rs/commits/254025c67868f188e8ef8bb6297ad81c4dcd784f">254025c</a>)
 
 ### <!--5-->Testing
 
-- add test case to verify tempdir extraction is fixed (<a href="https://github.com/muja/unrar.rs/commits/519956a9ef7bec40a6a3e29a0fc05b0b1ae9b6b4">519956a</a>, <a href="https://github.com/muja/unrar.rs/issues/34">#34</a>)
+- add test case to verify tempdir extraction is fixed (<a href="https://github.com/ttys3/unrar.rs/commits/519956a9ef7bec40a6a3e29a0fc05b0b1ae9b6b4">519956a</a>, <a href="https://github.com/ttys3/unrar.rs/issues/34">#34</a>)
 
 ### <!--6-->Documentation
 
-- add RAR 5.0 archive format doc (<a href="https://github.com/muja/unrar.rs/commits/1df450fab661bb97a69c23f5b0676d17db580f87">1df450f</a>)
+- add RAR 5.0 archive format doc (<a href="https://github.com/ttys3/unrar.rs/commits/1df450fab661bb97a69c23f5b0676d17db580f87">1df450f</a>)
 
 
 ## [0.5.3] - 2024-02-22
@@ -391,19 +482,19 @@ Minor release that adds opening archives in test mode
 
 ### <!--2-->Features
 
-- add test mode (<a href="https://github.com/muja/unrar.rs/commits/c0c124333e2b2a109720e8209bceca20a4a06767">c0c1243</a>)
+- add test mode (<a href="https://github.com/ttys3/unrar.rs/commits/c0c124333e2b2a109720e8209bceca20a4a06767">c0c1243</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(unrar_sys)</em> add Apache2 license to Cargo.toml (<a href="https://github.com/muja/unrar.rs/commits/e002f239a0b989b2e2115f828ebe6f42191b289c">e002f23</a>)
+- <em>(unrar_sys)</em> add Apache2 license to Cargo.toml (<a href="https://github.com/ttys3/unrar.rs/commits/e002f239a0b989b2e2115f828ebe6f42191b289c">e002f23</a>)
 
 ### <!--6-->Documentation
 
-- <em>(vendor)</em> htm -> md (for viewing in browser) (<a href="https://github.com/muja/unrar.rs/commits/c30e6d0c18b05e190fa8ba1f248e77acd67f1b3a">c30e6d0</a>)
+- <em>(vendor)</em> htm -> md (for viewing in browser) (<a href="https://github.com/ttys3/unrar.rs/commits/c30e6d0c18b05e190fa8ba1f248e77acd67f1b3a">c30e6d0</a>)
 
 ### <!--8-->Styling
 
-- <em>(docs)</em> fix markdown (<a href="https://github.com/muja/unrar.rs/commits/3e1fa1a370ab6a70dc202864b48aaaf6515feefb">3e1fa1a</a>)
+- <em>(docs)</em> fix markdown (<a href="https://github.com/ttys3/unrar.rs/commits/3e1fa1a370ab6a70dc202864b48aaaf6515feefb">3e1fa1a</a>)
 
 
 ## [0.5.2] - 2023-11-11
@@ -413,10 +504,10 @@ Minor bug fix release that fixes builds on Windows targets adds minor performanc
 
 ### <!--1-->Bug Fixes
 
-- <em>(archive)</em> dont strip parents in path methods (<a href="https://github.com/muja/unrar.rs/commits/5ebac5eb262e26ab8ee2fb715cb4366c0876ea74">5ebac5e</a>)
-- <em>(unrar_sys)</em> remove indirect dependency to MSVC comsupp library for windows-gnu target (<a href="https://github.com/muja/unrar.rs/commits/f2adc5820c30216f5ac27fb888040b6618d90ae6">f2adc58</a>)
+- <em>(archive)</em> dont strip parents in path methods (<a href="https://github.com/ttys3/unrar.rs/commits/5ebac5eb262e26ab8ee2fb715cb4366c0876ea74">5ebac5e</a>)
+- <em>(unrar_sys)</em> remove indirect dependency to MSVC comsupp library for windows-gnu target (<a href="https://github.com/ttys3/unrar.rs/commits/f2adc5820c30216f5ac27fb888040b6618d90ae6">f2adc58</a>)
 - <details>
-  <summary><em>(unrar_sys)</em> use winapi crate for all windows targets (<a href="https://github.com/muja/unrar.rs/commits/fe6838aad40f01864534468263631c3b960b98c9">fe6838a</a>)</summary>
+  <summary><em>(unrar_sys)</em> use winapi crate for all windows targets (<a href="https://github.com/ttys3/unrar.rs/commits/fe6838aad40f01864534468263631c3b960b98c9">fe6838a</a>)</summary>
   <blockquote>
 
   chore(unrar_sys): link against static libstdc++ on windows-gnu targets<br>
@@ -426,22 +517,22 @@ Minor bug fix release that fixes builds on Windows targets adds minor performanc
 
 ### <!--3-->Performance
 
-- <em>(archive)</em> use as_str instead of to_string_lossy where sensible (<a href="https://github.com/muja/unrar.rs/commits/7c61362aab808b4361157ee129cc348170234dd2">7c61362</a>)
+- <em>(archive)</em> use as_str instead of to_string_lossy where sensible (<a href="https://github.com/ttys3/unrar.rs/commits/7c61362aab808b4361157ee129cc348170234dd2">7c61362</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(license)</em> add Apache2 license #1 (<a href="https://github.com/muja/unrar.rs/commits/fe9d57f2c24b0eccef7ab3b5328e6e803e22d8ea">fe9d57f</a>)
-- <em>(unrar_sys)</em> upgrade DLL version to 6.24.0 (<a href="https://github.com/muja/unrar.rs/commits/5d196bfe3359bb54b3f148dedc62a99e739413b2">5d196bf</a>)
-- <em>(unrar_sys)</em> add upgrade instructions and script (<a href="https://github.com/muja/unrar.rs/commits/327b1c132b456b400e96def7e1ed988412241303">327b1c1</a>)
+- <em>(license)</em> add Apache2 license #1 (<a href="https://github.com/ttys3/unrar.rs/commits/fe9d57f2c24b0eccef7ab3b5328e6e803e22d8ea">fe9d57f</a>)
+- <em>(unrar_sys)</em> upgrade DLL version to 6.24.0 (<a href="https://github.com/ttys3/unrar.rs/commits/5d196bfe3359bb54b3f148dedc62a99e739413b2">5d196bf</a>)
+- <em>(unrar_sys)</em> add upgrade instructions and script (<a href="https://github.com/ttys3/unrar.rs/commits/327b1c132b456b400e96def7e1ed988412241303">327b1c1</a>)
 
 ### <!--5-->Testing
 
-- use PathBuf to not fail on windows (<a href="https://github.com/muja/unrar.rs/commits/51690216f9a595b9ae6ec119432e360755d7e004">5169021</a>)
+- use PathBuf to not fail on windows (<a href="https://github.com/ttys3/unrar.rs/commits/51690216f9a595b9ae6ec119432e360755d7e004">5169021</a>)
 
 ### <!--6-->Documentation
 
-- <em>(archive)</em> add docs examples for Archive::break_open (<a href="https://github.com/muja/unrar.rs/commits/015ffb1ef43ccffbb645bcbafd1905eec43d317c">015ffb1</a>)
-- <em>(unrar_sys)</em> add vendor documentation (<a href="https://github.com/muja/unrar.rs/commits/c087b736aead0f1eae6358de92b29c07f93783d7">c087b73</a>)
+- <em>(archive)</em> add docs examples for Archive::break_open (<a href="https://github.com/ttys3/unrar.rs/commits/015ffb1ef43ccffbb645bcbafd1905eec43d317c">015ffb1</a>)
+- <em>(unrar_sys)</em> add vendor documentation (<a href="https://github.com/ttys3/unrar.rs/commits/c087b736aead0f1eae6358de92b29c07f93783d7">c087b73</a>)
 
 
 ## [0.5.1] - 2023-06-28
@@ -451,17 +542,17 @@ This release fixes a critical UB bug
 
 ### <!--1-->Bug Fixes
 
-- <em>(open_archive)</em> fix NULL deref, pass valid pointer (<a href="https://github.com/muja/unrar.rs/commits/db0d379a2255db28c0fbf837ad3513ccdc5074c5">db0d379</a>)
+- <em>(open_archive)</em> fix NULL deref, pass valid pointer (<a href="https://github.com/ttys3/unrar.rs/commits/db0d379a2255db28c0fbf837ad3513ccdc5074c5">db0d379</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(deps)</em> remove unused lazy_static dependency (<a href="https://github.com/muja/unrar.rs/commits/a4adeacab951283691864f14f3172b667abc009a">a4adeac</a>)
-- add test step for unrar_sys library (<a href="https://github.com/muja/unrar.rs/commits/986de022da9336dacc4a0ec3df2404024852b112">986de02</a>)
+- <em>(deps)</em> remove unused lazy_static dependency (<a href="https://github.com/ttys3/unrar.rs/commits/a4adeacab951283691864f14f3172b667abc009a">a4adeac</a>)
+- add test step for unrar_sys library (<a href="https://github.com/ttys3/unrar.rs/commits/986de022da9336dacc4a0ec3df2404024852b112">986de02</a>)
 
 ### <!--7-->Example
 
-- <em>(unrar_sys)</em> format lister example (<a href="https://github.com/muja/unrar.rs/commits/da5f1a4b5f7cecea9abc11686bc238029a29038f">da5f1a4</a>)
-- <em>(unrar_sys)</em> fix windows build for lister example (<a href="https://github.com/muja/unrar.rs/commits/91646311cf24608c6059082786465a6f33035590">9164631</a>)
+- <em>(unrar_sys)</em> format lister example (<a href="https://github.com/ttys3/unrar.rs/commits/da5f1a4b5f7cecea9abc11686bc238029a29038f">da5f1a4</a>)
+- <em>(unrar_sys)</em> fix windows build for lister example (<a href="https://github.com/ttys3/unrar.rs/commits/91646311cf24608c6059082786465a6f33035590">9164631</a>)
 
 
 ## [0.5.0] - 2023-06-22
@@ -477,36 +568,40 @@ Another major focus of this release was documentation: all API items are documen
 
 ### <!--1-->Bug Fixes
 
-- <em>(unrar_sys)</em> fix broken code in example and test (<a href="https://github.com/muja/unrar.rs/commits/ddbf0fe7d37f696f0f8f7befe270d2480e9d0686">ddbf0fe</a>)
-- avoid endlessly returning errors in Iterator (<a href="https://github.com/muja/unrar.rs/commits/46dd0541f75cab0b558109178ff47755b6aa5ac2">46dd054</a>)
+- <em>(unrar_sys)</em> fix broken code in example and test (<a href="https://github.com/ttys3/unrar.rs/commits/ddbf0fe7d37f696f0f8f7befe270d2480e9d0686">ddbf0fe</a>)
+- avoid endlessly returning errors in Iterator (<a href="https://github.com/ttys3/unrar.rs/commits/46dd0541f75cab0b558109178ff47755b6aa5ac2">46dd054</a>)
 
 ### <!--2-->Features
 
-- implement typestate pattern, completely rewrite major parts (<a href="https://github.com/muja/unrar.rs/commits/b3ef161f4e7f10ced4c8900a4cdf18af8b6ca6bb">b3ef161</a>)
-- upgrade dependencies (<a href="https://github.com/muja/unrar.rs/commits/4539125616ee92cc09bcf833f4740f069113cde4">4539125</a>)
-- Archive::as_first_part returns self (<a href="https://github.com/muja/unrar.rs/commits/0c2566258a6573e2d050d1bafc32138660388723">0c25662</a>)
+- implement typestate pattern, completely rewrite major parts (<a href="https://github.com/ttys3/unrar.rs/commits/b3ef161f4e7f10ced4c8900a4cdf18af8b6ca6bb">b3ef161</a>)
+- upgrade dependencies (<a href="https://github.com/ttys3/unrar.rs/commits/4539125616ee92cc09bcf833f4740f069113cde4">4539125</a>)
+- Archive::as_first_part returns self (<a href="https://github.com/ttys3/unrar.rs/commits/0c2566258a6573e2d050d1bafc32138660388723">0c25662</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(dll)</em> upgrade DLL version to 6.2.8 (<a href="https://github.com/muja/unrar.rs/commits/598e273a340a5c612aee3134538f90385f23f50e">598e273</a>)
-- update author e-mail (<a href="https://github.com/muja/unrar.rs/commits/3e40b8d688bfed3bec6156b553539f907d591438">3e40b8d</a>)
-- update authors (<a href="https://github.com/muja/unrar.rs/commits/edeb4bce753a36886ef6d53a140ad87ee8c40d68">edeb4bc</a>)
-- add Github Actions workflow (<a href="https://github.com/muja/unrar.rs/commits/b8f213903955c066a494dc92a790549f2ab9b1e9">b8f2139</a>)
-- edition=2021, remove superfluous extern crates (<a href="https://github.com/muja/unrar.rs/commits/901a28ab82b8bb5b10bb49f69b32f91a97574dc9">901a28a</a>)
-- edition=2021, remove superfluous extern crates (<a href="https://github.com/muja/unrar.rs/commits/dcbad8e1faf8bda9c1f9a4ac6f6282f54994f7e3">dcbad8e</a>)
-- return Result<Option<T>,E> instead of Option<Result<T,E>> (<a href="https://github.com/muja/unrar.rs/commits/6bca25c2ddd1be8c0605d36f6ca7ab4449849e3d">6bca25c</a>)
+- <em>(dll)</em> upgrade DLL version to 6.2.8 (<a href="https://github.com/ttys3/unrar.rs/commits/598e273a340a5c612aee3134538f90385f23f50e">598e273</a>)
+- update author e-mail (<a href="https://github.com/ttys3/unrar.rs/commits/3e40b8d688bfed3bec6156b553539f907d591438">3e40b8d</a>)
+- update authors (<a href="https://github.com/ttys3/unrar.rs/commits/edeb4bce753a36886ef6d53a140ad87ee8c40d68">edeb4bc</a>)
+- add Github Actions workflow (<a href="https://github.com/ttys3/unrar.rs/commits/b8f213903955c066a494dc92a790549f2ab9b1e9">b8f2139</a>)
+- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/901a28ab82b8bb5b10bb49f69b32f91a97574dc9">901a28a</a>)
+- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/dcbad8e1faf8bda9c1f9a4ac6f6282f54994f7e3">dcbad8e</a>)
+- return Result<Option<T>,E> instead of Option<Result<T,E>> (<a href="https://github.com/ttys3/unrar.rs/commits/6bca25c2ddd1be8c0605d36f6ca7ab4449849e3d">6bca25c</a>)
 
 ### <!--6-->Documentation
 
-- further improve crate-level docs (<a href="https://github.com/muja/unrar.rs/commits/c5bb2bfaa6080509fd0b5120b5aa8edcafb0591a">c5bb2bf</a>)
+- further improve crate-level docs (<a href="https://github.com/ttys3/unrar.rs/commits/c5bb2bfaa6080509fd0b5120b5aa8edcafb0591a">c5bb2bf</a>)
 
 ### <!--7-->Example
 
-- <em>(read_named)</em> rename example and print content (<a href="https://github.com/muja/unrar.rs/commits/9b1354390c108066ce7be63bf788a6cd13c56bc0">9b13543</a>)
+- <em>(read_named)</em> rename example and print content (<a href="https://github.com/ttys3/unrar.rs/commits/9b1354390c108066ce7be63bf788a6cd13c56bc0">9b13543</a>)
 
 ### <!--8-->Styling
 
-- cargo fmt (<a href="https://github.com/muja/unrar.rs/commits/0bf0d59353c89c02be52855dbf0af515f24568d1">0bf0d59</a>)
-- use std::ptr::null/_mut instead of 0 as *_ (<a href="https://github.com/muja/unrar.rs/commits/d0e6547459e2ef7f2050c864ce55ddcb016984ab">d0e6547</a>)
+- cargo fmt (<a href="https://github.com/ttys3/unrar.rs/commits/0bf0d59353c89c02be52855dbf0af515f24568d1">0bf0d59</a>)
+- use std::ptr::null/_mut instead of 0 as *_ (<a href="https://github.com/ttys3/unrar.rs/commits/d0e6547459e2ef7f2050c864ce55ddcb016984ab">d0e6547</a>)
+
+
+## [0.4.3] - 2017-12-26
+
 
 
