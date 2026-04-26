@@ -1,4 +1,13 @@
 fn main() {
+    // Watch the whole vendored UnRAR tree so additions/removals — and edits
+    // to files outside the `#include` graph that `cc` already tracks via
+    // its own per-source `rerun-if-changed` emissions — trigger a rebuild.
+    // (Cargo automatically tracks `build.rs` itself, so listing it here is
+    // unnecessary.) Without this directive, an upstream upgrade that adds
+    // a new `.cpp` we forget to register, or a `.hpp` not yet picked up by
+    // any compiled translation unit, would silently use stale object files.
+    println!("cargo:rerun-if-changed=vendor/unrar");
+
     if cfg!(windows) {
         println!("cargo:rustc-flags=-lpowrprof");
         println!("cargo:rustc-link-lib=shell32");

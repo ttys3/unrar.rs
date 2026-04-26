@@ -94,9 +94,25 @@ pub const UCM_NEEDPASSWORD: c_uint = 2;
 pub const UCM_CHANGEVOLUMEW: c_uint = 3;
 pub const UCM_NEEDPASSWORDW: c_uint = 4;
 pub const UCM_LARGEDICT: c_uint = 5;
-pub const UCM_EXTRACTFILE: c_uint = 6;     // File extraction started
-pub const UCM_EXTRACTFILE_OK: c_uint = 7;  // File extraction succeeded
-pub const UCM_EXTRACTFILE_ERR: c_uint = 8; // File extraction failed
+
+// Fork-only event ids. Match dll.hpp explicit `UCM_EXTRACTFILE = 100`.
+// Do NOT renumber to be consecutive with upstream UCM_LARGEDICT(5);
+// 6..99 are reserved for future upstream UCM_* additions.
+pub const UCM_EXTRACTFILE: c_uint = 100; // File extraction started
+pub const UCM_EXTRACTFILE_OK: c_uint = 101; // File extraction succeeded
+pub const UCM_EXTRACTFILE_ERR: c_uint = 102; // File extraction failed
+
+// Compile-time guard: explicit reservation must not be silently re-numbered.
+// `assert!` with a custom message is stable in const context since Rust 1.65;
+// MSRV 1.94 fully covers it.
+const _: () = {
+    assert!(
+        UCM_EXTRACTFILE == 100,
+        "UCM_EXTRACTFILE must stay 100; 6..99 reserved for upstream UCM_*"
+    );
+    assert!(UCM_EXTRACTFILE_OK == 101);
+    assert!(UCM_EXTRACTFILE_ERR == 102);
+};
 
 // RAROpenArchiveDataEx::Flags
 pub const ROADF_VOLUME: c_uint = 0x0001;

@@ -164,9 +164,12 @@ struct RAROpenArchiveDataEx
 enum UNRARCALLBACK_MESSAGES {
   UCM_CHANGEVOLUME,UCM_PROCESSDATA,UCM_NEEDPASSWORD,UCM_CHANGEVOLUMEW,
   UCM_NEEDPASSWORDW,UCM_LARGEDICT,
-  UCM_EXTRACTFILE,      // File extraction started, P1=filename (wchar_t*), P2=file size
-  UCM_EXTRACTFILE_OK,   // File extraction succeeded, P1=filename (wchar_t*), P2=0
-  UCM_EXTRACTFILE_ERR   // File extraction failed, P1=filename (wchar_t*), P2=error code
+  // Fork-only event ids: explicitly start at 100 to reserve 6..99 for any
+  // future upstream UCM_* additions. Do NOT renumber to be consecutive
+  // with UCM_LARGEDICT.
+  UCM_EXTRACTFILE = 100, // File extraction started,   P1=filename (wchar_t*), P2=file size
+  UCM_EXTRACTFILE_OK,    // File extraction succeeded, P1=filename (wchar_t*), P2=0
+  UCM_EXTRACTFILE_ERR    // File extraction failed,    P1=filename (wchar_t*), P2=error code
 };
 
 typedef int (PASCAL *CHANGEVOLPROC)(char *ArcName,int Mode);
