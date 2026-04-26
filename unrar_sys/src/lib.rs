@@ -296,7 +296,7 @@ const _: () = {
 #[cfg_attr(target_os = "macos", link(name = "c++"))]
 #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd"), link(name = "c++"))]
 #[cfg_attr(any(target_os = "linux", target_os = "netbsd"), link(name = "stdc++"))]
-extern "C" {
+unsafe extern "C" {
     pub fn RAROpenArchive(data: *const OpenArchiveData) -> *const Handle;
 
     pub fn RAROpenArchiveEx(data: *const OpenArchiveDataEx) -> *const Handle;

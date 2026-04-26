@@ -10,8 +10,8 @@ build = "build.rs"
 license = "MIT OR Apache-2.0"
 description = "FFI bindings to unrar (with minimal abstractions). Actively maintained fork of unrar_sys."
 repository = "https://github.com/ttys3/unrar.rs"
-edition = "2021"
-rust-version = "1.94"
+edition = "2024"
+rust-version = "1.85"
 
 # Files excluded from the published crate. These are maintainer-facing
 # (patch series, upgrade script) or unrelated to the build (RAR API

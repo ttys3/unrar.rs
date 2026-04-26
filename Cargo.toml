@@ -6,8 +6,8 @@ authors = [
   "vjoki <vjoki@zv.fi>",
   "ttys3 <41882455+ttys3@users.noreply.github.com>",
 ]
-edition = "2021"
-rust-version = "1.94"
+edition = "2024"
+rust-version = "1.85"
 
 license = "MIT OR Apache-2.0"
 description = "list and extract RAR archives. Actively maintained fork of unrar."
