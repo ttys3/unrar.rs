@@ -6,7 +6,35 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-04-26
+
+
+### <!--4-->Miscellaneous / Refactors
+
+- <details>
+  <summary><em>(msrv)</em> lower MSRV to 1.85 and adopt Rust 2024 edition (<a href="https://github.com/ttys3/unrar.rs/commits/0e2b7e10e40e4e9a7b23de3f6367a9669fe56d8c">0e2b7e1</a>)</summary>
+  <blockquote>
+
+  The previous floor of 1.94 was set defensively when bumping the FFI<br>
+  struct layout fix, but the codebase only depends on Rust features<br>
+  through 1.82 (`&raw const` for one packed-field pointer in<br>
+  `open_archive.rs`); the rest of the stack — direct deps regex 1.65 /<br>
+  libc 1.63 / widestring 1.58 / bitflags 1.56 — sits well below that.<br>
+  Migrating both crates to edition 2024 lifts the floor to 1.85, which<br>
+  remains the new tight lower bound. unsafe-extern-blocks (the only 2024<br>
+  edition migration churn here) wraps the existing FFI declarations in<br>
+  `unsafe extern "C"` to satisfy the new requirement; semantics are<br>
+  unchanged.<br>
+  <br>
+  Lowers the install bar for downstream users on stable Rust 1.85+<br>
+  without giving up any feature this crate currently uses.
+  </blockquote>
+  </details>
+
+
 ## [0.7.2] - 2026-04-26
+
+v0.7.2
 
 
 ### <!--2-->Features
@@ -71,6 +99,10 @@ LargeDictWarning. extract_all_with_callback now returns
 UnrarResult<ExtractStatus> instead of UnrarResult<()>; existing call
 sites need to match on ExtractStatus or discard it via
 let _ = archive.extract_all_with_callback(...)?;.
+
+### <!--4-->Miscellaneous / Refactors
+
+- bump version to 0.7.2 (<a href="https://github.com/ttys3/unrar.rs/commits/9f4b65c277d7bb50cf184c175efb9043f00cbcf5">9f4b65c</a>)
 
 
 ## [0.7.1] - 2026-04-26
