@@ -1,0 +1,32 @@
+From 9d38459f07e4fd6093246c35c98921579281aee2 Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Mon, 26 Jan 2026 17:16:24 +0000
+Subject: [PATCH] fix(unrar): correct return value in RAROpenArchiveEx to
+ return Data handle instead of nullptr
+
+this cherry-pick from commit 5accdb7d4e49618640183a0cbe868fef74db5c73
+Author: Danyel Bayraktar <danyel@webhippie.de>
+Date:   2015-08-03 14:26:33 +0200
+
+    Return non-null handle even on BAD_DATA (broken header)
+---
+ dll.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/dll.cpp b/dll.cpp
+index 45be5a2..1d7134b 100644
+--- a/dll.cpp
++++ b/dll.cpp
+@@ -87,8 +87,7 @@ HANDLE PASCAL RAROpenArchiveEx(struct RAROpenArchiveDataEx *r)
+         else
+           r->OpenResult=ERAR_BAD_ARCHIVE;
+       }
+-      delete Data;
+-      return nullptr;
++      return (HANDLE) Data;
+     }
+     r->Flags=0;
+     
+-- 
+2.50.1 (Apple Git-155)
+

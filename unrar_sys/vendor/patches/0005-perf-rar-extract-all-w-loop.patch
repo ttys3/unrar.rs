@@ -1,0 +1,74 @@
+From 33f57e0be1ef980cb44acb9af32209eaaa53dde8 Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Mon, 26 Jan 2026 19:47:08 +0000
+Subject: [PATCH] perf(unrar): optimize RARExtractAllW extraction loop for
+ improved performance and readability
+
+---
+ dll.cpp | 44 +++++++++++---------------------------------
+ 1 file changed, 11 insertions(+), 33 deletions(-)
+
+diff --git a/dll.cpp b/dll.cpp
+index 4ee283e..9190167 100644
+--- a/dll.cpp
++++ b/dll.cpp
+@@ -521,45 +521,23 @@ int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
+     Data->Cmd.Test=false;
+     Data->Cmd.DllOpMode=RAR_EXTRACT;
+     
+-    // Process all files in a tight loop
++    // Use the same loop pattern as command line version for optimal performance.
++    // ReadHeader() reads the next block header directly, and ExtractCurrentFile()
++    // handles all header types internally (HEAD_FILE, HEAD_SERVICE, HEAD_ENDARC, etc.)
+     while (true)
+     {
+-      Data->HeaderSize=(int)Data->Arc.SearchBlock(HEAD_FILE);
+-      if (Data->HeaderSize<=0)
+-      {
+-        // Handle multi-volume archives
+-        if (Data->Arc.Volume && Data->Arc.GetHeaderType()==HEAD_ENDARC &&
+-            Data->Arc.EndArcHead.NextVolume)
+-        {
+-          if (MergeArchive(Data->Arc,NULL,false,'L'))
+-          {
+-            Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+-            continue;
+-          }
+-          else
+-            break; // No more volumes
+-        }
+-        break; // End of archive
+-      }
+-      
+-      // Skip files that are split from previous volume in list mode
+-      if (Data->OpenMode==RAR_OM_LIST && Data->Arc.FileHead.SplitBefore)
+-      {
+-        Data->Arc.SeekToNext();
+-        continue;
+-      }
++      size_t Size=Data->Arc.ReadHeader();
+       
+       bool Repeat=false;
+-      Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
+-      
+-      // Process extra file information (service blocks like ACLs)
+-      while (Data->Arc.IsOpened() && Data->Arc.ReadHeader()!=0 && 
+-             Data->Arc.GetHeaderType()==HEAD_SERVICE)
++      if (!Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat))
+       {
+-        Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
+-        Data->Arc.SeekToNext();
++        if (Repeat)
++        {
++          // Handle extraction restart from first volume
++          continue;
++        }
++        break;  // End of archive or error
+       }
+-      Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+     }
+   }
+   catch (std::bad_alloc&)
+-- 
+2.50.1 (Apple Git-155)
+

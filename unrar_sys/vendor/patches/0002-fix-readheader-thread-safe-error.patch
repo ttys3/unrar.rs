@@ -1,0 +1,42 @@
+From 162e1a589e388ce183a70f721cb820b99d5a71bf Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Mon, 26 Jan 2026 17:41:31 +0000
+Subject: [PATCH] fix(unrar): improve error handling in RARReadHeaderEx and
+ ProcessFile functions to return DLL-specific error directly, avoiding global
+ error code interference in multi-threaded environments
+
+---
+ dll.cpp | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/dll.cpp b/dll.cpp
+index 1d7134b..abc36b6 100644
+--- a/dll.cpp
++++ b/dll.cpp
+@@ -330,7 +330,10 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
+   {
+     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
+   }
+-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
++  // Return success if no DLL-specific error was set.
++  // We avoid using global ErrHandler.GetErrorCode() here because it can be 
++  // affected by parallel operations in multi-threaded environments.
++  return Data->Cmd.DllError;
+ }
+ 
+ 
+@@ -427,7 +430,10 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
+   {
+     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
+   }
+-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
++  // Return success if no DLL-specific error was set.
++  // We avoid using global ErrHandler.GetErrorCode() here because it can be 
++  // affected by parallel operations in multi-threaded environments.
++  return Data->Cmd.DllError;
+ }
+ 
+ 
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,42 @@
+From 8d7fa864b12d08d4ee139386585b05bc56c3b483 Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Mon, 1 Apr 2024 14:56:15 +0000
+Subject: [PATCH] chore(dll): fix build by avoiding call to
+ __builtin_cpu_supports
+
+This fixes the ___cpu_model undefined error on macOS 12 and macOS 13
+confirmed macOS 14 does not have this issue
+---
+ rijndael.cpp | 2 +-
+ system.cpp   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/rijndael.cpp b/rijndael.cpp
+index 8707b57..aad0ef1 100644
+--- a/rijndael.cpp
++++ b/rijndael.cpp
+@@ -111,7 +111,7 @@ void Rijndael::Init(bool Encrypt,const byte *key,uint keyLen,const byte * initVe
+   }
+   else
+     AES_NI=false;
+-#elif defined(__GNUC__)
++#elif defined(__GNUC__) && defined(__GLIBC__) && !defined(_APPLE)
+   AES_NI=__builtin_cpu_supports("aes");
+ #endif
+ 
+diff --git a/system.cpp b/system.cpp
+index b8f96cb..9305c54 100644
+--- a/system.cpp
++++ b/system.cpp
+@@ -229,7 +229,7 @@ SSE_VERSION GetSSEVersion()
+     if ((CPUInfo[3] & 0x2000000)!=0)
+       return SSE_SSE;
+   }
+-#elif defined(__GNUC__)
++#elif defined(__GNUC__) && defined(__GLIBC__) && !defined(_APPLE)
+   if (__builtin_cpu_supports("avx2"))
+     return SSE_AVX2;
+   if (__builtin_cpu_supports("sse4.1"))
+-- 
+2.50.1 (Apple Git-155)
+

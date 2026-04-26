@@ -1,0 +1,88 @@
+From a428b778817f73b2f0481b79dc3d549b1569906e Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Tue, 27 Jan 2026 04:18:28 +0800
+Subject: [PATCH] feat(dll): add extraction progress callbacks UCM_EXTRACTFILE,
+ UCM_EXTRACTFILE_OK, UCM_EXTRACTFILE_ERR
+
+Add callback notifications in RARExtractAllW for file extraction progress:
+- UCM_EXTRACTFILE: called when file extraction starts (p1=filename, p2=size)
+- UCM_EXTRACTFILE_OK: called when file extraction succeeds
+- UCM_EXTRACTFILE_ERR: called when file extraction fails (p2=error code)
+
+This enables progress tracking and logging during batch extraction.
+---
+ dll.cpp | 40 +++++++++++++++++++++++++++++++++++++++-
+ dll.hpp |  5 ++++-
+ 2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/dll.cpp b/dll.cpp
+index 9190167..ebc3e65 100644
+--- a/dll.cpp
++++ b/dll.cpp
+@@ -528,8 +528,46 @@ int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
+     {
+       size_t Size=Data->Arc.ReadHeader();
+       
++      // Check if this is a file header and notify callback
++      bool IsFileHeader = (Data->Arc.GetHeaderType()==HEAD_FILE);
++      std::wstring CurrentFileName;
++      int64 CurrentFileSize = 0;
++      
++      if (IsFileHeader)
++      {
++        CurrentFileName = Data->Arc.FileHead.FileName;
++        CurrentFileSize = Data->Arc.FileHead.UnpSize;
++        
++        // Notify callback that file extraction is starting
++        if (Data->Cmd.Callback!=NULL)
++        {
++          if (Data->Cmd.Callback(UCM_EXTRACTFILE, Data->Cmd.UserData,
++              (LPARAM)CurrentFileName.c_str(), (LPARAM)CurrentFileSize)==-1)
++          {
++            return ERAR_SUCCESS; // User cancelled extraction
++          }
++        }
++      }
++      
+       bool Repeat=false;
+-      if (!Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat))
++      bool Success = Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat);
++      
++      // Notify callback of extraction result
++      if (IsFileHeader && Data->Cmd.Callback!=NULL)
++      {
++        if (Success)
++        {
++          Data->Cmd.Callback(UCM_EXTRACTFILE_OK, Data->Cmd.UserData,
++            (LPARAM)CurrentFileName.c_str(), 0);
++        }
++        else if (!Repeat)
++        {
++          Data->Cmd.Callback(UCM_EXTRACTFILE_ERR, Data->Cmd.UserData,
++            (LPARAM)CurrentFileName.c_str(), (LPARAM)Data->Cmd.DllError);
++        }
++      }
++      
++      if (!Success)
+       {
+         if (Repeat)
+         {
+diff --git a/dll.hpp b/dll.hpp
+index 04e9be1..c4ff265 100644
+--- a/dll.hpp
++++ b/dll.hpp
+@@ -163,7 +163,10 @@ struct RAROpenArchiveDataEx
+ 
+ enum UNRARCALLBACK_MESSAGES {
+   UCM_CHANGEVOLUME,UCM_PROCESSDATA,UCM_NEEDPASSWORD,UCM_CHANGEVOLUMEW,
+-  UCM_NEEDPASSWORDW,UCM_LARGEDICT
++  UCM_NEEDPASSWORDW,UCM_LARGEDICT,
++  UCM_EXTRACTFILE,      // File extraction started, P1=filename (wchar_t*), P2=file size
++  UCM_EXTRACTFILE_OK,   // File extraction succeeded, P1=filename (wchar_t*), P2=0
++  UCM_EXTRACTFILE_ERR   // File extraction failed, P1=filename (wchar_t*), P2=error code
+ };
+ 
+ typedef int (PASCAL *CHANGEVOLPROC)(char *ArcName,int Mode);
+-- 
+2.50.1 (Apple Git-155)
+

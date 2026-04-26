@@ -78,12 +78,12 @@ Rules when touching these structs:
 
 ### Vendored UnRAR source
 
-`unrar_sys/vendor/unrar/` is a **pristine** RARLab source tree plus a small set of fork patches listed in `unrar_sys/vendor/patches.txt`. The patches (as full-length git SHAs) add:
+`unrar_sys/vendor/unrar/` is a **pristine** RARLab source tree plus a small set of fork patches stored as numbered files under `unrar_sys/vendor/patches/0001..0006-*.patch`. The patches add:
 
 1. Two small upstream-fix cherry-picks and one macOS Intel build fix.
 2. The batch-extraction feature chain: `RARExtractAll`/`W` (dll.cpp/hpp/def), a perf pass over the extraction loop, and the `UCM_EXTRACTFILE{,_OK,_ERR}` callbacks.
 
-To upgrade to a new UnRAR release, run `./unrar_sys/vendor/upgrade.sh <tarball-url>` from a clean working tree — it extracts the tarball over `unrar/` and cherry-picks every hash in `patches.txt` (order matters; 4 must come before 5 and 6). The vendor README has the full procedure.
+To upgrade to a new UnRAR release, run `./unrar_sys/vendor/upgrade.sh <tarball-url>` from a clean working tree — it extracts the tarball over `unrar/` and applies every patch in `patches/` via `git apply --index` in numeric order (the `0004-…batch.patch`, `0005-…loop.patch`, `0006-…callbacks.patch` chain depends on that order). The vendor README has the full procedure.
 
 `unrar_sys/build.rs` hard-codes the list of `.cpp` files to compile. New upstream versions may add files (e.g. `largepage.cpp` in 7.x, `motw.cpp` Windows-only) — the list in `build.rs` must be updated to match.
 

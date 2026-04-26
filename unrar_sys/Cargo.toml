@@ -13,6 +13,17 @@ repository = "https://github.com/ttys3/unrar.rs"
 edition = "2021"
 rust-version = "1.94"
 
+# Files excluded from the published crate. These are maintainer-facing
+# (patch series, upgrade script) or unrelated to the build (RAR API
+# documentation shipped by upstream).
+exclude = [
+    "vendor/patches/**",
+    "vendor/patches.txt",   # defensive: file removed when migrating from cherry-pick to git-apply
+    "vendor/upgrade.sh",
+    "vendor/README.md",
+    "vendor/Documentation/**",
+]
+
 [lib]
 name = "unrar_ng_sys"
 
