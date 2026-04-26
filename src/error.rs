@@ -8,30 +8,37 @@ use std::result::Result;
 
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[repr(i32)]
+#[non_exhaustive]
 pub enum Code {
-    Success = native::ERAR_SUCCESS,
-    EndArchive = native::ERAR_END_ARCHIVE,
-    NoMemory = native::ERAR_NO_MEMORY,
-    BadData = native::ERAR_BAD_DATA,
-    BadArchive = native::ERAR_BAD_ARCHIVE,
-    UnknownFormat = native::ERAR_UNKNOWN_FORMAT,
-    EOpen = native::ERAR_EOPEN,
-    ECreate = native::ERAR_ECREATE,
-    EClose = native::ERAR_ECLOSE,
-    ERead = native::ERAR_EREAD,
-    EWrite = native::ERAR_EWRITE,
-    SmallBuf = native::ERAR_SMALL_BUF,
-    Unknown = native::ERAR_UNKNOWN,
-    MissingPassword = native::ERAR_MISSING_PASSWORD,
+    Success,
+    EndArchive,
+    NoMemory,
+    BadData,
+    BadArchive,
+    UnknownFormat,
+    EOpen,
+    ECreate,
+    EClose,
+    ERead,
+    EWrite,
+    SmallBuf,
+    Unknown,
+    MissingPassword,
     // From the UnRARDLL docs:
     // When attempting to unpack a reference record (see RAR -oi switch),
     // source file for this reference was not found.
     // Entire archive needs to be unpacked to properly create file references.
     // This error is returned when attempting to unpack the reference
     // record without its source file.
-    EReference = native::ERAR_EREFERENCE,
-    BadPassword = native::ERAR_BAD_PASSWORD,
+    EReference,
+    BadPassword,
+    LargeDict,
+    /// Catches any DLL error code that this Rust enum does not (yet) name.
+    /// Carries the raw `int` returned by the DLL so callers can log or match
+    /// numerically without panicking when a future UnRAR release adds a new
+    /// `ERAR_*`. Distinct from [`Code::Unknown`], which corresponds to the
+    /// upstream `ERAR_UNKNOWN(21)` constant.
+    Unmapped(i32),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -42,26 +49,32 @@ pub enum When {
 }
 
 impl Code {
-    pub fn from(code: i32) -> Option<Self> {
+    /// Map a raw DLL error code to a [`Code`] variant.
+    ///
+    /// Unknown values fall through to [`Code::Unmapped`], which carries
+    /// the raw `i32` so callers can log or match numerically without
+    /// panicking when a future UnRAR release adds a new `ERAR_*`.
+    pub fn from(code: i32) -> Self {
         use Code::*;
         match code {
-            native::ERAR_SUCCESS => Some(Success),
-            native::ERAR_END_ARCHIVE => Some(EndArchive),
-            native::ERAR_NO_MEMORY => Some(NoMemory),
-            native::ERAR_BAD_DATA => Some(BadData),
-            native::ERAR_BAD_ARCHIVE => Some(BadArchive),
-            native::ERAR_UNKNOWN_FORMAT => Some(UnknownFormat),
-            native::ERAR_EOPEN => Some(EOpen),
-            native::ERAR_ECREATE => Some(ECreate),
-            native::ERAR_ECLOSE => Some(EClose),
-            native::ERAR_EREAD => Some(ERead),
-            native::ERAR_EWRITE => Some(EWrite),
-            native::ERAR_SMALL_BUF => Some(SmallBuf),
-            native::ERAR_UNKNOWN => Some(Unknown),
-            native::ERAR_MISSING_PASSWORD => Some(MissingPassword),
-            native::ERAR_EREFERENCE => Some(EReference),
-            native::ERAR_BAD_PASSWORD => Some(BadPassword),
-            _ => None,
+            native::ERAR_SUCCESS => Success,
+            native::ERAR_END_ARCHIVE => EndArchive,
+            native::ERAR_NO_MEMORY => NoMemory,
+            native::ERAR_BAD_DATA => BadData,
+            native::ERAR_BAD_ARCHIVE => BadArchive,
+            native::ERAR_UNKNOWN_FORMAT => UnknownFormat,
+            native::ERAR_EOPEN => EOpen,
+            native::ERAR_ECREATE => ECreate,
+            native::ERAR_ECLOSE => EClose,
+            native::ERAR_EREAD => ERead,
+            native::ERAR_EWRITE => EWrite,
+            native::ERAR_SMALL_BUF => SmallBuf,
+            native::ERAR_UNKNOWN => Unknown,
+            native::ERAR_MISSING_PASSWORD => MissingPassword,
+            native::ERAR_EREFERENCE => EReference,
+            native::ERAR_BAD_PASSWORD => BadPassword,
+            native::ERAR_LARGE_DICT => LargeDict,
+            c => Unmapped(c),
         }
     }
 }
@@ -103,6 +116,8 @@ impl fmt::Display for UnrarError {
             (MissingPassword, _) => write!(f, "Password for encrypted archive not specified"),
             (EReference, _) => write!(f, "Cannot open file source for reference record"),
             (BadPassword, _) => write!(f, "Wrong password was specified"),
+            (LargeDict, _) => write!(f, "Archive uses a dictionary too large for this build"),
+            (Unmapped(c), _) => write!(f, "Unmapped DLL error code: {c}"),
             (Unknown, _) => write!(f, "Unknown error"),
             (EndArchive, _) => write!(f, "Archive end"),
             (Success, _) => write!(f, "Success"),

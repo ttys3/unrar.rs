@@ -12,7 +12,7 @@ use std::env;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process;
-use unrar_ng::{Archive, ExtractEvent};
+use unrar_ng::{Archive, ExtractEvent, ExtractStatus};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -66,33 +66,56 @@ fn main() {
     let mut file_count = 0u32;
     let mut error_count = 0u32;
 
-    let result = archive.extract_all_with_callback(dest_dir, |event| {
-        match event {
-            ExtractEvent::Start { filename, .. } => {
-                print!("extracting {}... ", filename.display());
-                let _ = io::stdout().flush();
-                true // continue extraction
-            }
-            ExtractEvent::Ok { .. } => {
-                println!("ok");
-                file_count += 1;
-                true
-            }
-            ExtractEvent::Err { error_code, .. } => {
-                println!("error (code: {})", error_code);
-                error_count += 1;
-                true // continue with other files
-            }
+    let result = archive.extract_all_with_callback(dest_dir, |event| match event {
+        ExtractEvent::Start { filename, .. } => {
+            print!("extracting {}... ", filename.display());
+            let _ = io::stdout().flush();
+            true // continue extraction
         }
+        ExtractEvent::Ok { .. } => {
+            println!("ok");
+            file_count += 1;
+            true
+        }
+        ExtractEvent::Err { error_code, .. } => {
+            println!("error (code: {})", error_code);
+            error_count += 1;
+            true // continue with other files
+        }
+        ExtractEvent::LargeDictWarning {
+            dict_size_kb,
+            max_dict_size_kb,
+        } => {
+            eprintln!(
+                "archive needs {} KB dictionary; build supports {} KB",
+                dict_size_kb, max_dict_size_kb
+            );
+            // Two reasonable strategies here:
+            //   `false` (chosen): refuse oversized dict, fail loudly with Code::LargeDict.
+            //   `true`:  proceed; the DLL will then return BadData/NoMemory at decode time.
+            false
+        }
+        // ExtractEvent is `#[non_exhaustive]`; default to "continue" for any
+        // future event variants this example does not yet know how to render.
+        _ => true,
     });
 
-    if let Err(e) = result {
-        eprintln!("Error: Failed to extract archive: {}", e);
-        process::exit(1);
-    }
+    let status = match result {
+        Ok(status) => status,
+        Err(e) => {
+            eprintln!("Error: Failed to extract archive: {}", e);
+            process::exit(1);
+        }
+    };
 
     let elapsed = start.elapsed();
     println!();
-    println!("Extraction completed in {:.2?}", elapsed);
+    match status {
+        ExtractStatus::Completed => println!("Extraction completed in {:.2?}", elapsed),
+        ExtractStatus::Cancelled => println!("Extraction cancelled after {:.2?}", elapsed),
+        // ExtractStatus is `#[non_exhaustive]`. Today only Completed/Cancelled
+        // exist; this arm is forward-compat only and unreachable on 0.7.x.
+        _ => println!("Extraction finished after {:.2?}", elapsed),
+    }
     println!("Extracted {} files, {} errors", file_count, error_count);
 }

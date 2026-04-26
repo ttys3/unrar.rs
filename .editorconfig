@@ -1,0 +1,22 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Vendor patches encode trailing whitespace from the source files they
+# describe; trimming it here would silently break `git apply` against
+# the vendored unrar tree (see unrar_sys/vendor/upgrade.sh).
+[unrar_sys/vendor/patches/*.patch]
+trim_trailing_whitespace = false
+
+# Vendor C++ source preserves upstream's exact whitespace so that the
+# patch chain in unrar_sys/vendor/patches/ keeps applying cleanly.
+[unrar_sys/vendor/unrar/**]
+trim_trailing_whitespace = false
+
+[*.{rs,toml,md}]
+indent_style = space
+indent_size = 4

@@ -9,6 +9,6 @@ mod pathed;
 mod open_archive;
 pub use error::UnrarResult;
 pub use open_archive::{
-    CursorBeforeFile, CursorBeforeHeader, ExtractEvent, FileHeader, List, ListSplit, OpenArchive,
-    Process, VolumeInfo,
+    CursorBeforeFile, CursorBeforeHeader, ExtractEvent, ExtractStatus, FileHeader, List, ListSplit,
+    OpenArchive, Process, VolumeInfo,
 };

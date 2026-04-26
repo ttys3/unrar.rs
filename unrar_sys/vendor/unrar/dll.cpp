@@ -562,18 +562,27 @@ int PASCAL RARExtractAllW(HANDLE hArcData,wchar *DestPath)
       bool Repeat=false;
       bool Success = Data->Extract.ExtractCurrentFile(Data->Arc,Size,Repeat);
       
-      // Notify callback of extraction result
+      // Notify callback of extraction result. Returning -1 from either
+      // UCM_EXTRACTFILE_OK or UCM_EXTRACTFILE_ERR aborts extraction in
+      // the same way UCM_EXTRACTFILE does, so cancel semantics are
+      // uniform across all three events.
       if (IsFileHeader && Data->Cmd.Callback!=NULL)
       {
         if (Success)
         {
-          Data->Cmd.Callback(UCM_EXTRACTFILE_OK, Data->Cmd.UserData,
-            (LPARAM)CurrentFileName.c_str(), 0);
+          if (Data->Cmd.Callback(UCM_EXTRACTFILE_OK, Data->Cmd.UserData,
+              (LPARAM)CurrentFileName.c_str(), 0)==-1)
+          {
+            return ERAR_SUCCESS; // User cancelled extraction
+          }
         }
         else if (!Repeat)
         {
-          Data->Cmd.Callback(UCM_EXTRACTFILE_ERR, Data->Cmd.UserData,
-            (LPARAM)CurrentFileName.c_str(), (LPARAM)Data->Cmd.DllError);
+          if (Data->Cmd.Callback(UCM_EXTRACTFILE_ERR, Data->Cmd.UserData,
+              (LPARAM)CurrentFileName.c_str(), (LPARAM)Data->Cmd.DllError)==-1)
+          {
+            return ERAR_SUCCESS; // User cancelled extraction
+          }
         }
       }
       

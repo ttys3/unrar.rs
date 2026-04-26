@@ -36,6 +36,7 @@ pub enum VolumeInfo {
 /// This enum is used with [`OpenArchive::extract_all_with_callback`] to receive
 /// notifications about extraction progress.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum ExtractEvent {
     /// File extraction is starting.
     Start {
@@ -56,6 +57,35 @@ pub enum ExtractEvent {
         /// The error code from the extraction
         error_code: i32,
     },
+    /// The archive requires a dictionary larger than the build-time limit.
+    ///
+    /// Surfaced from the upstream `UCM_LARGEDICT` callback. Returning
+    /// `true` permits the DLL to proceed; returning `false` lets the DLL
+    /// fail the operation, which the caller then observes as
+    /// `Err(UnrarError { code:` [`Code::LargeDict`](crate::error::Code::LargeDict)`, when: When::Process })`.
+    LargeDictWarning {
+        /// The dictionary size required by the archive, in kilobytes.
+        dict_size_kb: u64,
+        /// The maximum dictionary size this build supports, in kilobytes.
+        max_dict_size_kb: u64,
+    },
+}
+
+/// Outcome of [`OpenArchive::extract_all_with_callback`].
+///
+/// The DLL maps a user-initiated cancel (the callback returning `false`
+/// from `Start`/`Ok`/`Err`) to `ERAR_SUCCESS`, so without this status
+/// the caller cannot tell whether the archive finished or was stopped
+/// early. Pattern-match to distinguish the two — `Completed` means the
+/// DLL exhausted the archive, `Cancelled` means the callback aborted
+/// the run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ExtractStatus {
+    /// Extraction ran to the end of the archive.
+    Completed,
+    /// The user callback returned `false` and aborted extraction early.
+    Cancelled,
 }
 
 #[derive(Debug)]
@@ -278,7 +308,7 @@ impl<Mode: OpenMode> OpenArchive<Mode, CursorBeforeHeader> {
                 marker: std::marker::PhantomData,
             })
         });
-        let result = Code::from(data.open_result as i32).unwrap();
+        let result = Code::from(data.open_result as i32);
 
         match (arc, result) {
             (Some(arc), Code::Success) => Ok(arc),
@@ -346,7 +376,7 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     pub fn extract_all<P: AsRef<Path>>(self, dest: P) -> UnrarResult<()> {
         let dest_path = pathed::construct(dest.as_ref());
         let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
-        match Code::from(result).unwrap() {
+        match Code::from(result) {
             Code::Success => Ok(()),
             code => Err(UnrarError::from(code, When::Process)),
         }
@@ -361,18 +391,33 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     ///
     /// * `dest` - The destination directory path.
     /// * `callback` - A closure that receives [`ExtractEvent`] notifications.
-    ///   The callback returns `true` to continue extraction or `false` to cancel.
+    ///   For `Start`, `Ok` and `Err`, returning `false` cancels the rest
+    ///   of the extraction and the call returns `Ok(ExtractStatus::Cancelled)`.
+    ///   For `LargeDictWarning`, `false` rejects the oversized dictionary
+    ///   instead of cancelling — extraction then fails with
+    ///   [`Code::LargeDict`](crate::error::Code::LargeDict).
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(ExtractStatus::Completed)` — the DLL finished iterating the
+    ///   archive without the callback ever returning `false` from a
+    ///   cancellable event.
+    /// * `Ok(ExtractStatus::Cancelled)` — the callback aborted extraction
+    ///   early on a `Start`/`Ok`/`Err` event.
+    /// * `Err(UnrarError { .. })` — the DLL surfaced an error (incl.
+    ///   [`Code::LargeDict`](crate::error::Code::LargeDict) when the
+    ///   callback rejected an oversized dictionary).
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use unrar_ng::{Archive, ExtractEvent};
+    /// use unrar_ng::{Archive, ExtractEvent, ExtractStatus};
     ///
     /// let archive = Archive::new("archive.rar")
     ///     .open_for_processing()
     ///     .expect("Failed to open archive");
     ///
-    /// archive.extract_all_with_callback("./output", |event| {
+    /// let status = archive.extract_all_with_callback("./output", |event| {
     ///     match event {
     ///         ExtractEvent::Start { filename, size } => {
     ///             print!("extracting {}... ({} bytes) ", filename.display(), size);
@@ -386,14 +431,28 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     ///             println!("error (code: {})", error_code);
     ///             true // continue with other files
     ///         }
+    ///         ExtractEvent::LargeDictWarning { dict_size_kb, max_dict_size_kb } => {
+    ///             eprintln!("archive needs {dict_size_kb} KB dict, build supports {max_dict_size_kb} KB");
+    ///             false // refuse oversized dict; extraction fails with Code::LargeDict
+    ///         }
+    ///         _ => true,
     ///     }
     /// }).expect("Failed to extract archive");
+    /// match status {
+    ///     ExtractStatus::Completed => println!("done"),
+    ///     ExtractStatus::Cancelled => println!("user cancelled"),
+    ///     _ => {}
+    /// }
     /// ```
     ///
     /// # Panics
     ///
     /// This function will panic if `dest` contains nul characters.
-    pub fn extract_all_with_callback<P, F>(self, dest: P, mut callback: F) -> UnrarResult<()>
+    pub fn extract_all_with_callback<P, F>(
+        self,
+        dest: P,
+        mut callback: F,
+    ) -> UnrarResult<ExtractStatus>
     where
         P: AsRef<Path>,
         F: FnMut(ExtractEvent) -> bool,
@@ -418,8 +477,16 @@ impl OpenArchive<Process, CursorBeforeHeader> {
             }
             let data = unsafe { &mut *(user_data as *mut CallbackData<'_, F>) };
 
-            // Helper function to safely read wchar_t* string from p1
-            // Uses native::WCHAR (libc::wchar_t) which is i32 on Unix, u16 on Windows
+            // Helper to read a wchar_t* string from p1.
+            // native::WCHAR is i32 on Unix, u16 on Windows.
+            //
+            // FIXME: the `char::from_u32 + filter_map` decode below silently
+            // drops unpaired surrogates on Windows (wchar_t = u16), so the
+            // filename reported via ExtractEvent can diverge from what
+            // pathed/all.rs writes to disk via lossless WideCString. The
+            // 2048-wchar truncation cap below is also a known gap — both
+            // problems disappear once this is rewritten with
+            // U16/U32CString::from_ptr_truncate -> OsString -> PathBuf.
             fn read_filename(p1: native::LPARAM) -> Option<PathBuf> {
                 if p1 == 0 {
                     return None;
@@ -430,9 +497,12 @@ impl OpenArchive<Process, CursorBeforeHeader> {
                     return None;
                 }
 
-                // Find null terminator
+                // Find null terminator. 2048 mirrors the upstream maximum
+                // path length used by `WideCString::from_ptr_truncate` in
+                // `pathed/all.rs::construct` and elsewhere — see the comment
+                // on `Internal::callback`'s UCM_CHANGEVOLUMEW arm in this file.
                 let mut len = 0usize;
-                const MAX_LEN: usize = 1024;
+                const MAX_LEN: usize = 2048;
                 unsafe {
                     while len < MAX_LEN && *ptr.add(len) != 0 {
                         len += 1;
@@ -496,6 +566,23 @@ impl OpenArchive<Process, CursorBeforeHeader> {
                     }
                     0
                 }
+                native::UCM_LARGEDICT => {
+                    // Upstream `uiDictLimit` (vendor/unrar/uisilent.cpp): only
+                    // a return of 1 lets extraction continue; any other value
+                    // (including 0) makes the DLL fail with ERAR_LARGE_DICT.
+                    // P1/P2 are the required and max dict sizes in KB.
+                    //
+                    // Rejecting an oversized dictionary is not a user cancel —
+                    // it surfaces as `Err(Code::LargeDict)`, so we deliberately
+                    // do NOT set `data.cancelled` here. That keeps
+                    // `ExtractStatus::Cancelled` strictly meaning "callback
+                    // returned false from Start/Ok/Err".
+                    let event = ExtractEvent::LargeDictWarning {
+                        dict_size_kb: p1 as u64,
+                        max_dict_size_kb: p2 as u64,
+                    };
+                    if (data.callback)(event) { 1 } else { 0 }
+                }
                 native::UCM_CHANGEVOLUMEW => {
                     // Handle volume change: -1 means stop (volume not found)
                     match p2 {
@@ -524,8 +611,9 @@ impl OpenArchive<Process, CursorBeforeHeader> {
 
         let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
 
-        match Code::from(result).unwrap() {
-            Code::Success => Ok(()),
+        match Code::from(result) {
+            Code::Success if callback_data.cancelled => Ok(ExtractStatus::Cancelled),
+            Code::Success => Ok(ExtractStatus::Completed),
             code => Err(UnrarError::from(code, When::Process)),
         }
     }
@@ -687,9 +775,9 @@ fn read_header(handle: &Handle) -> UnrarResult<Option<FileHeader>> {
         );
     }
     let mut header = native::HeaderDataEx::default();
-    let read_result =
-        Code::from(unsafe { native::RARReadHeaderEx(handle.0.as_ptr(), &mut header as *mut _) })
-            .unwrap();
+    let read_result = Code::from(unsafe {
+        native::RARReadHeaderEx(handle.0.as_ptr(), &mut header as *mut _)
+    });
     match read_result {
         Code::Success => Ok(Some(header.into())),
         Code::EndArchive => Ok(None),
@@ -795,8 +883,7 @@ impl<M: ProcessMode> Internal<M> {
             M::OPERATION as i32,
             path,
             file,
-        ))
-        .unwrap();
+        ));
         match process_result {
             Code::Success => Ok(user_data.0),
             _ => Err(UnrarError::from(process_result, When::Process)),
