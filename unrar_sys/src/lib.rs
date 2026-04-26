@@ -244,33 +244,38 @@ pub struct OpenArchiveDataEx {
 // compile error instead of silent memory corruption at runtime.
 //
 // We only assert the 64-bit pointer-width case because that's the only
-// target we actively build and test. Windows 64-bit and Linux/macOS 64-bit
-// agree on all the relevant field widths (`LPARAM` is 8 bytes on both).
+// target we actively build and test. `LPARAM` is 8 bytes on every 64-bit
+// target, but `wchar_t` is platform-dependent (2 bytes on Windows MSVC,
+// 4 bytes on Linux/macOS/BSD), so all `HeaderDataEx` offsets after the
+// first `[wchar_t; 1024]` array are parameterized by `size_of::<wchar_t>()`.
 // 32-bit targets still build, they just don't get layout verification.
 #[cfg(target_pointer_width = "64")]
 const _: () = {
     use core::mem::{offset_of, size_of};
 
+    // `wchar_t` width: 2 on Windows (UTF-16), 4 on Linux/macOS/BSD (UCS-4).
+    const W: usize = size_of::<wchar_t>();
+
     // HeaderDataEx — packed, pointer=8
     assert!(offset_of!(HeaderDataEx, archive_name) == 0);
     assert!(offset_of!(HeaderDataEx, archive_name_w) == 1024);
-    assert!(offset_of!(HeaderDataEx, filename) == 5120);
-    assert!(offset_of!(HeaderDataEx, filename_w) == 6144);
-    assert!(offset_of!(HeaderDataEx, flags) == 10240);
-    assert!(offset_of!(HeaderDataEx, file_attr) == 10280);
+    assert!(offset_of!(HeaderDataEx, filename) == 1024 + 1024 * W);
+    assert!(offset_of!(HeaderDataEx, filename_w) == 2048 + 1024 * W);
+    assert!(offset_of!(HeaderDataEx, flags) == 2048 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, file_attr) == 2088 + 2048 * W);
     // First pointer — this is where `#[repr(C)]` would have inserted 4
     // bytes of padding; `packed(1)` must not.
-    assert!(offset_of!(HeaderDataEx, comment_buffer) == 10284);
-    assert!(offset_of!(HeaderDataEx, comment_buffer_size) == 10292);
-    assert!(offset_of!(HeaderDataEx, hash) == 10312);
-    assert!(offset_of!(HeaderDataEx, redir_type) == 10344);
-    assert!(offset_of!(HeaderDataEx, redir_name) == 10348);
-    assert!(offset_of!(HeaderDataEx, mtime_low) == 10364);
-    assert!(offset_of!(HeaderDataEx, atime_high) == 10384);
-    assert!(offset_of!(HeaderDataEx, arc_name_ex) == 10388);
-    assert!(offset_of!(HeaderDataEx, file_name_ex_size) == 10408);
-    assert!(offset_of!(HeaderDataEx, reserved) == 10412);
-    assert!(size_of::<HeaderDataEx>() == 14340);
+    assert!(offset_of!(HeaderDataEx, comment_buffer) == 2092 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, comment_buffer_size) == 2100 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, hash) == 2120 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, redir_type) == 2152 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, redir_name) == 2156 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, mtime_low) == 2172 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, atime_high) == 2192 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, arc_name_ex) == 2196 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, file_name_ex_size) == 2216 + 2048 * W);
+    assert!(offset_of!(HeaderDataEx, reserved) == 2220 + 2048 * W);
+    assert!(size_of::<HeaderDataEx>() == 6148 + 2048 * W);
 
     // OpenArchiveDataEx — packed, pointer=8
     assert!(offset_of!(OpenArchiveDataEx, archive_name) == 0);
