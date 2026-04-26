@@ -6,7 +6,131 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-26
+
+
+### <!--1-->Bug Fixes
+
+- <details>
+  <summary><em>(cliff)</em> tighten commit matchers and adopt latest 2.x features (<a href="https://github.com/ttys3/unrar.rs/commits/b0025ae8abb102a7949da9caa0414a08e835e457">b0025ae</a>)</summary>
+  <blockquote>
+
+  - Move `(examples?)` scope matcher to the top of `commit_parsers` so<br>
+    `feat(example): ...` and similar scope-tagged commits land in the<br>
+    Example group rather than being captured by the type-based rules<br>
+    (`^feat`, `^fix`, etc.) that came before it.<br>
+  - Replace the over-broad `.*example` regex (which matched any commit<br>
+    body containing the word "examples") with the strict<br>
+    `^[a-z]+\(examples?\)!?:` so only scope-tagged commits qualify. The<br>
+    old rule misclassified the 0.7.0 rename commit because its body<br>
+    mentioned `tests/examples/benches`.<br>
+  - Add `^build` to the catch-all so `build:` commits are no longer<br>
+    silently filtered.<br>
+  - Add `protect_breaking_commits = true` so a future BREAKING commit<br>
+    cannot be silently dropped if a parser rule changes.<br>
+  - Add `tag_pattern = "v[0-9].*"` so changelog generation ignores any<br>
+    experimental / non-release tags.<br>
+  - Add `sort_commits = "newest"` explicitly (matches prior implicit<br>
+    behavior; visible to future maintainers).<br>
+  - Add `link_parsers` so `#NNN` issue / PR references in commit<br>
+    messages render as GitHub links in the changelog.<br>
+  <br>
+  This commit only updates the rule set — CHANGELOG.md is intentionally<br>
+  not regenerated here because doing so would overwrite the manually<br>
+  appended `### Migration from 0.6.x` subsection in the 0.7.0 entry. The<br>
+  new grouping will take effect for the next bump.
+  </blockquote>
+  </details>
+
+### <!--4-->Miscellaneous / Refactors
+
+- <details>
+  <summary><em>(dll)</em> explicit UCM_EXTRACTFILE id 100 to reserve upstream space (<a href="https://github.com/ttys3/unrar.rs/commits/651ba6c6d25f7bfed73101703cb27a3f43c0b648">651ba6c</a>)</summary>
+  <blockquote>
+
+  The fork-only callback messages UCM_EXTRACTFILE, UCM_EXTRACTFILE_OK and<br>
+  UCM_EXTRACTFILE_ERR were appended to upstream's UNRARCALLBACK_MESSAGES<br>
+  enum without explicit values, so they auto-incremented to 6/7/8 —<br>
+  adjacent to upstream's last id UCM_LARGEDICT(5). If a future UnRAR<br>
+  release inserts any new UCM_* between UCM_LARGEDICT and our additions,<br>
+  the C++ ids silently shift but the Rust constants (hard-coded<br>
+  c_uint = 6/7/8) stay put — same type, no compile error, callback<br>
+  dispatch enters the wrong arm. No integration test exercises the raw<br>
+  msg ids, so the bug would land at runtime.<br>
+  <br>
+  Pin the fork-only ids at 100/101/102 so 6..99 stays available for any<br>
+  upstream growth, and add a const _: () = { assert!(...); }; block in<br>
+  unrar_sys/src/lib.rs so a typo on the Rust side fails at cargo build<br>
+  rather than silently. The<br>
+  unrar_sys/vendor/patches/0006-feat-ucm-extractfile-callbacks.patch is<br>
+  regenerated to carry the explicit = 100 so vendor upgrades land the new<br>
+  layout.<br>
+  <br>
+  Drive-by unrar_sys/build.rs fix: emit cargo:rerun-if-changed=vendor/unrar<br>
+  so cargo invalidates the static lib whenever any vendored source<br>
+  changes. Without this directive, edits to dll.hpp (and other headers<br>
+  cc doesn't pick up via its #include graph) leave stale object files in<br>
+  place — discovered the hard way during this very change, where a<br>
+  cargo build after editing the enum silently kept the old 6/7/8<br>
+  callback dispatch.
+  </blockquote>
+  </details>  - **BREAKING**: unrar_ng_sys::UCM_EXTRACTFILE, UCM_EXTRACTFILE_OK,
+UCM_EXTRACTFILE_ERR are public c_uint constants whose numeric values
+are part of the FFI surface. They change from 6/7/8 to 100/101/102.
+Downstream code that referenced these by name keeps working unchanged;
+code that hard-coded the integers (e.g. a non-Rust binding redeclaring
+the ids) needs to follow.
+- <details>
+  <summary><em>(vendor)</em> refresh 7.2.5 tree via new upgrade.sh, drop array.hpp ghost (<a href="https://github.com/ttys3/unrar.rs/commits/6c66ea54a24b9612bee9a48cffe591f030388c1b">6c66ea5</a>)</summary>
+  <blockquote>
+
+  Re-running the rewritten `upgrade.sh` against unrarsrc-7.2.5.tar.gz<br>
+  (the same upstream version already vendored, so 6 patches still apply<br>
+  cleanly with no whitespace warnings) reveals one historical ghost<br>
+  file: `unrar_sys/vendor/unrar/array.hpp`. It was last touched by the<br>
+  6.2.8 → 7.x bump and has not been referenced by any .cpp / .hpp /<br>
+  build.rs since (upstream dropped it during the 7.x rewrite); previous<br>
+  flat-tar overlays kept it lingering in the index.<br>
+  <br>
+  The new flow's `git rm --cached --ignore-unmatch unrar_sys/vendor/unrar`<br>
+  + `rm -rf` + fresh extract + `git add -A` reaps it automatically. No<br>
+  functional change — just a 169-line drop from the tree to align main<br>
+  with what `upgrade.sh` actually produces from a clean tarball.
+  </blockquote>
+  </details>
+- <details>
+  <summary><em>(vendor)</em> switch from cherry-pick to git apply patch files (<a href="https://github.com/ttys3/unrar.rs/commits/b9c8ff6216067daa6079e8a61e00813fa34eccfc">b9c8ff6</a>)</summary>
+  <blockquote>
+
+  Replace the legacy `patches.txt` (a flat list of fork-commit hashes that<br>
+  `upgrade.sh` re-applied via `git cherry-pick -n`) with a numbered series<br>
+  of `.patch` files under `unrar_sys/vendor/patches/`, applied with<br>
+  `git apply --index --whitespace=nowarn` in name order. Editing a patch<br>
+  no longer requires producing a new commit hash and updating an external<br>
+  index — patches are self-contained `git format-patch` outputs that the<br>
+  script applies directly.<br>
+  <br>
+  The new `upgrade.sh` adds: `set -euo pipefail`, an early dirty-tree<br>
+  check that also rejects local changes inside `vendor/unrar/` (so a<br>
+  maintainer's untracked debug files are never silently `rm -rf`'d), a<br>
+  private staging dir for tarball extraction (so a flat-layout tarball<br>
+  or a `__MACOSX/` payload cannot pollute `vendor/`), explicit fail-fast<br>
+  when `patches/` is empty (so vendor is never half-replaced), and<br>
+  `git rm --cached --ignore-unmatch` + `git add -A` so files dropped<br>
+  upstream don't linger in the index as ghosts on the next bump.<br>
+  <br>
+  Also adds a `[package].exclude` block in `unrar_sys/Cargo.toml` to keep<br>
+  maintainer-facing artefacts (the patch series, `upgrade.sh`, the new<br>
+  `vendor/README.md`, and upstream's `vendor/Documentation/` API notes)<br>
+  out of the published crate, and updates `CLAUDE.md` to describe the new<br>
+  flow.
+  </blockquote>
+  </details>
+
+
 ## [0.7.0] - 2026-04-25
+
+v0.7.0
 
 
 ### <!--1-->Bug Fixes
@@ -29,20 +153,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### <!--4-->Miscellaneous / Refactors
 
-- update package name for unrar_sys tests to unrar-ng-sys (<a href="https://github.com/ttys3/unrar.rs/commits/84c4dedae5f4b04f8d7def20434b3bfe5e4fe11a">84c4ded</a>)
-
-### <!--6-->Documentation
-
 - <details>
-  <summary>add CLAUDE.md for project guidance and common commands (<a href="https://github.com/ttys3/unrar.rs/commits/77a9951613d34e612327900ed39b9a533464717f">77a9951</a>)</summary>
+  <summary>bump version to 0.7.0 (<a href="https://github.com/ttys3/unrar.rs/commits/685987c8605e28fd81fe1885982c72eac7ed633a">685987c</a>)</summary>
   <blockquote>
 
-  This new documentation file provides an overview of the `unrar-ng` project, including its architecture, common commands for building and testing, and details on the vendored UnRAR source. It aims to assist developers in understanding and working with the codebase effectively.
+  BREAKING release: library targets renamed to unrar_ng / unrar_ng_sys<br>
+  (see CHANGELOG.md and the README "Breaking change in 0.7" section).
   </blockquote>
   </details>
-
-### <!--7-->Example
-
 - <details>
   <summary>rename library targets to unrar_ng / unrar_ng_sys (<a href="https://github.com/ttys3/unrar.rs/commits/09f4a229faa743ce6258e43cca35ddea3f09157c">09f4a22</a>)</summary>
   <blockquote>
@@ -66,37 +184,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 `use unrar_sys::...` no longer compile by default. See the README's
 "Breaking change in 0.7" section for the two supported migration paths
 (clean rename vs. Cargo dep alias).
+- update package name for unrar_sys tests to unrar-ng-sys (<a href="https://github.com/ttys3/unrar.rs/commits/84c4dedae5f4b04f8d7def20434b3bfe5e4fe11a">84c4ded</a>)
 
-### Migration from 0.6.x
+### <!--6-->Documentation
 
-The library targets were renamed (BREAKING):
+- <details>
+  <summary><em>(changelog)</em> add 0.7.0 migration guide (<a href="https://github.com/ttys3/unrar.rs/commits/0808750f38d276f475a6b2ff0005a90e1d2904cc">0808750</a>)</summary>
+  <blockquote>
 
-- `unrar` → `unrar_ng`
-- `unrar_sys` → `unrar_ng_sys`
+  git-cliff renders only the first line of a `BREAKING CHANGE:` body, so<br>
+  the multi-line migration snippets from the rename commit do not show up<br>
+  in the auto-generated 0.7.0 entry. Append a `### Migration from 0.6.x`<br>
+  subsection with both supported migration paths (clean rename vs. dep<br>
+  alias) so users who land on CHANGELOG.md from crates.io see them<br>
+  without needing to dig into commit bodies.
+  </blockquote>
+  </details>
+- <details>
+  <summary>add CLAUDE.md for project guidance and common commands (<a href="https://github.com/ttys3/unrar.rs/commits/77a9951613d34e612327900ed39b9a533464717f">77a9951</a>)</summary>
+  <blockquote>
 
-The package names (`unrar-ng`, `unrar-ng-sys`) are unchanged. Two migration paths:
-
-**1. Recommended (clean)** — update both `Cargo.toml` and source:
-
-```toml
-[dependencies]
-unrar-ng = "0.7"
-```
-
-```rust
-use unrar_ng::Archive;
-```
-
-**2. Minimal-change** — keep `use unrar::Archive;` source by aliasing the dep:
-
-```toml
-[dependencies]
-unrar = { package = "unrar-ng", version = "0.7" }
-# Only if you also depend on the FFI crate directly:
-unrar_sys = { package = "unrar-ng-sys", version = "0.7" }
-```
-
-Cargo's dep-rename mechanism makes the consumer-side `extern crate` / `use` name follow the dep key, regardless of the dependency's `[lib] name`, so existing `use unrar::Archive;` / `use unrar_sys::*;` lines continue to work under path 2.
+  This new documentation file provides an overview of the `unrar-ng` project, including its architecture, common commands for building and testing, and details on the vendored UnRAR source. It aims to assist developers in understanding and working with the codebase effectively.
+  </blockquote>
+  </details>
 
 
 ## [0.6.2] - 2026-04-15
@@ -173,9 +283,6 @@ See CHANGELOG.md for full details.
   added by 5626369.
   </blockquote>
   </details>
-
-### <!--7-->Example
-
 - <details>
   <summary><em>(unrar)</em> update vendored unrar source to 7.2.5 (<a href="https://github.com/ttys3/unrar.rs/commits/0ef97ef1cdefb99a7c8605217af82fb782bda7b5">0ef97ef</a>)</summary>
   <blockquote>
@@ -225,6 +332,8 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
 
 ### <!--1-->Bug Fixes
 
+- <em>(unrar)</em> enhance patch processing in upgrade script to skip empty lines and comments (<a href="https://github.com/ttys3/unrar.rs/commits/cdbd41db3207e4039424fc6254826a12c84ebf7b">cdbd41d</a>)
+- <em>(unrar)</em> improve error handling in RARReadHeaderEx and ProcessFile functions to return DLL-specific error directly, avoiding global error code interference in multi-threaded environments (<a href="https://github.com/ttys3/unrar.rs/commits/162e1a589e388ce183a70f721cb820b99d5a71bf">162e1a5</a>)
 - <details>
   <summary><em>(unrar)</em> correct return value in RAROpenArchiveEx to return Data handle instead of nullptr (<a href="https://github.com/ttys3/unrar.rs/commits/9d38459f07e4fd6093246c35c98921579281aee2">9d38459</a>)</summary>
   <blockquote>
@@ -236,8 +345,6 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
       Return non-null handle even on BAD_DATA (broken header)
   </blockquote>
   </details>
-- <em>(unrar)</em> improve error handling in RARReadHeaderEx and ProcessFile functions to return DLL-specific error directly, avoiding global error code interference in multi-threaded environments (<a href="https://github.com/ttys3/unrar.rs/commits/162e1a589e388ce183a70f721cb820b99d5a71bf">162e1a5</a>)
-- <em>(unrar)</em> enhance patch processing in upgrade script to skip empty lines and comments (<a href="https://github.com/ttys3/unrar.rs/commits/cdbd41db3207e4039424fc6254826a12c84ebf7b">cdbd41d</a>)
 - <em>(windows)</em> add advapi32 library link for Windows builds (<a href="https://github.com/ttys3/unrar.rs/commits/389f6a01c58e2c4bb067009c044ac1aa3f976bd8">389f6a0</a>)
 - add c3b414e28f87f06df43d6ab91220faf1647f7433 back for macOS 15 Intel (<a href="https://github.com/ttys3/unrar.rs/commits/84969f3eddb35269fefddade0ae72301b90caade">84969f3</a>)
 
@@ -272,14 +379,21 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(ci)</em> update macOS and Ubuntu versions in CI workflow to support latest environments (<a href="https://github.com/ttys3/unrar.rs/commits/d4ac95c050c5226f1bf2c94681cc00ec667f5b79">d4ac95c</a>)
 - <em>(ci)</em> update CI workflow to include new Windows 2025 and MacOS 26 environments, and rename existing OS entries for clarity (<a href="https://github.com/ttys3/unrar.rs/commits/79784e1194bba187ce69dc12c79d38e708041873">79784e1</a>)
+- <em>(ci)</em> update macOS and Ubuntu versions in CI workflow to support latest environments (<a href="https://github.com/ttys3/unrar.rs/commits/d4ac95c050c5226f1bf2c94681cc00ec667f5b79">d4ac95c</a>)
 - <details>
   <summary><em>(dll)</em> fix build by avoiding call to __builtin_cpu_supports (<a href="https://github.com/ttys3/unrar.rs/commits/8d7fa864b12d08d4ee139386585b05bc56c3b483">8d7fa86</a>)</summary>
   <blockquote>
 
   This fixes the ___cpu_model undefined error on macOS 12 and macOS 13<br>
   confirmed macOS 14 does not have this issue
+  </blockquote>
+  </details>
+- <details>
+  <summary><em>(open_archive)</em> streamline wchar_t string handling for cross-platform compatibility (<a href="https://github.com/ttys3/unrar.rs/commits/e450ef5daa37c70e433557664475bcd35d40d42c">e450ef5</a>)</summary>
+  <blockquote>
+
+  Updated the filename reading function to utilize native::WCHAR for improved safety and clarity. This change simplifies the conversion process for wchar_t strings, ensuring consistent behavior across Unix and Windows platforms.
   </blockquote>
   </details>
 - <details>
@@ -292,16 +406,8 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
   improving cross-platform compatibility. This change replaces the previous unsafe string handling with a more robust solution that accommodates both Unix and Windows wchar_t representations.
   </blockquote>
   </details>
-- <details>
-  <summary><em>(open_archive)</em> streamline wchar_t string handling for cross-platform compatibility (<a href="https://github.com/ttys3/unrar.rs/commits/e450ef5daa37c70e433557664475bcd35d40d42c">e450ef5</a>)</summary>
-  <blockquote>
-
-  Updated the filename reading function to utilize native::WCHAR for improved safety and clarity. This change simplifies the conversion process for wchar_t strings, ensuring consistent behavior across Unix and Windows platforms.
-  </blockquote>
-  </details>
-- <em>(unrar)</em> get ready update to https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/b2839df0521967b443ed9e002be01b81352ff118">b2839df</a>)
-- <em>(unrar)</em> add original https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/9290ea14671cf151b52772a350b2786406ce529d">9290ea1</a>)
-- <em>(unrar)</em> update patch reference from 5accdb7d4e49618640183a0cbe868fef74db5c73 to 9d38459f07e4fd6093246c35c98921579281aee2 (<a href="https://github.com/ttys3/unrar.rs/commits/6430f8b495707e047c783612f0b0a1476351e624">6430f8b</a>)
+- <em>(unrar)</em> update patch reference from c3b414e28f87f06df43d6ab91220faf1647f7433 to 162e1a589e388ce183a70f721cb820b99d5a71bf (<a href="https://github.com/ttys3/unrar.rs/commits/4c21a6448b8116049af2f37cf25a95a6626bfced">4c21a64</a>)
+- <em>(unrar)</em> update upgrade script URL to latest UnRAR release 7.2.3 (<a href="https://github.com/ttys3/unrar.rs/commits/2ff320a40842e70dc2a9fd740c6897a04508de69">2ff320a</a>)
 - <details>
   <summary><em>(unrar)</em> remove obsolete patch reference f2adc5820c30216f5ac27fb888040b6618d90ae6 from patches.txt (<a href="https://github.com/ttys3/unrar.rs/commits/3795512e90acccdb946a9a15094dd56ccbfa1097">3795512</a>)</summary>
   <blockquote>
@@ -309,8 +415,26 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
   this is no longer required since the new isnt.cpp does not use WMI_IsWindows10() any more
   </blockquote>
   </details>
-- <em>(unrar)</em> update upgrade script URL to latest UnRAR release 7.2.3 (<a href="https://github.com/ttys3/unrar.rs/commits/2ff320a40842e70dc2a9fd740c6897a04508de69">2ff320a</a>)
-- <em>(unrar)</em> update patch reference from c3b414e28f87f06df43d6ab91220faf1647f7433 to 162e1a589e388ce183a70f721cb820b99d5a71bf (<a href="https://github.com/ttys3/unrar.rs/commits/4c21a6448b8116049af2f37cf25a95a6626bfced">4c21a64</a>)
+- <em>(unrar)</em> update patch reference from 5accdb7d4e49618640183a0cbe868fef74db5c73 to 9d38459f07e4fd6093246c35c98921579281aee2 (<a href="https://github.com/ttys3/unrar.rs/commits/6430f8b495707e047c783612f0b0a1476351e624">6430f8b</a>)
+- <em>(unrar)</em> add original https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/9290ea14671cf151b52772a350b2786406ce529d">9290ea1</a>)
+- <em>(unrar)</em> get ready update to https://www.rarlab.com/rar/unrarsrc-7.2.3.tar.gz (<a href="https://github.com/ttys3/unrar.rs/commits/b2839df0521967b443ed9e002be01b81352ff118">b2839df</a>)
+- <details>
+  <summary>update .gitignore to exclude additional file types and directories (<a href="https://github.com/ttys3/unrar.rs/commits/e3c3030a797726f94e8e3ba3e8ca402d59c18dbb">e3c3030</a>)</summary>
+  <blockquote>
+
+  Added entries to ignore cursor files and compressed archives (.zip, .rar, .7z) to keep the repository clean from unnecessary files.
+  </blockquote>
+  </details>
+- <details>
+  <summary>use github noreply email and soften fork notice (<a href="https://github.com/ttys3/unrar.rs/commits/394a7702be2d79b8591e8b82683d48c31b258e8f">394a770</a>)</summary>
+  <blockquote>
+
+  - Replace personal email with github noreply address in authors field<br>
+    of both unrar-ng and unrar-ng-sys Cargo.toml<br>
+  - Reword README fork notice to avoid making claims about upstream<br>
+    maintenance status; only describe what this fork does
+  </blockquote>
+  </details>
 - <details>
   <summary>rename crate to unrar-ng (fork) (<a href="https://github.com/ttys3/unrar.rs/commits/779cb1663a756d7cbc708bb2f861e5de0b7296e2">779cb16</a>)</summary>
   <blockquote>
@@ -333,23 +457,6 @@ progress callbacks, and Windows/macOS build fixes. See CHANGELOG.md.
 
     [dependencies]
     unrar = { package = "unrar-ng", version = "0.5" }
-- <details>
-  <summary>use github noreply email and soften fork notice (<a href="https://github.com/ttys3/unrar.rs/commits/394a7702be2d79b8591e8b82683d48c31b258e8f">394a770</a>)</summary>
-  <blockquote>
-
-  - Replace personal email with github noreply address in authors field<br>
-    of both unrar-ng and unrar-ng-sys Cargo.toml<br>
-  - Reword README fork notice to avoid making claims about upstream<br>
-    maintenance status; only describe what this fork does
-  </blockquote>
-  </details>
-- <details>
-  <summary>update .gitignore to exclude additional file types and directories (<a href="https://github.com/ttys3/unrar.rs/commits/e3c3030a797726f94e8e3ba3e8ca402d59c18dbb">e3c3030</a>)</summary>
-  <blockquote>
-
-  Added entries to ignore cursor files and compressed archives (.zip, .rar, .7z) to keep the repository clean from unnecessary files.
-  </blockquote>
-  </details>
 
 ### <!--6-->Documentation
 
@@ -477,7 +584,7 @@ Issues: [#34](https://github.com/ttys3/unrar.rs/issues/34), [#44](https://github
 
 ### <!--4-->Miscellaneous / Refactors
 
-- <em>(dll)</em> upgrade unrar source code version to 7.0.9 (<a href="https://github.com/ttys3/unrar.rs/commits/8992d51988c3a2705447ed9bdca44669eeb83391">8992d51</a>)
+- <em>(dll)</em> update patches (<a href="https://github.com/ttys3/unrar.rs/commits/801318a6034a4f6918eec00c635f994a14219661">801318a</a>)
 - <details>
   <summary><em>(dll)</em> fix build by avoiding call to __builtin_cpu_supports (<a href="https://github.com/ttys3/unrar.rs/commits/c3b414e28f87f06df43d6ab91220faf1647f7433">c3b414e</a>)</summary>
   <blockquote>
@@ -486,8 +593,9 @@ Issues: [#34](https://github.com/ttys3/unrar.rs/issues/34), [#44](https://github
   confirmed macOS 14 does not have this issue
   </blockquote>
   </details>
-- <em>(dll)</em> update patches (<a href="https://github.com/ttys3/unrar.rs/commits/801318a6034a4f6918eec00c635f994a14219661">801318a</a>)
+- <em>(dll)</em> upgrade unrar source code version to 7.0.9 (<a href="https://github.com/ttys3/unrar.rs/commits/8992d51988c3a2705447ed9bdca44669eeb83391">8992d51</a>)
 - <em>(release)</em> fancy release notes (<a href="https://github.com/ttys3/unrar.rs/commits/53ba119d7096de7117898257068c3360deda44c8">53ba119</a>)
+- add workflow_dispatch event (<a href="https://github.com/ttys3/unrar.rs/commits/254025c67868f188e8ef8bb6297ad81c4dcd784f">254025c</a>)
 - <details>
   <summary>remove macos-11 due to it does not supported by github anymore, add macOS 13  and macOS 14 support (<a href="https://github.com/ttys3/unrar.rs/commits/3c37105a1561846029868f9f56729c9b571f5bac">3c37105</a>)</summary>
   <blockquote>
@@ -495,7 +603,6 @@ Issues: [#34](https://github.com/ttys3/unrar.rs/issues/34), [#44](https://github
   see https://github.blog/changelog/2024-05-20-actions-upcoming-changes-to-github-hosted-macos-runners/#macos-11-deprecation-and-removal
   </blockquote>
   </details>
-- add workflow_dispatch event (<a href="https://github.com/ttys3/unrar.rs/commits/254025c67868f188e8ef8bb6297ad81c4dcd784f">254025c</a>)
 
 ### <!--5-->Testing
 
@@ -536,7 +643,6 @@ Minor bug fix release that fixes builds on Windows targets adds minor performanc
 ### <!--1-->Bug Fixes
 
 - <em>(archive)</em> dont strip parents in path methods (<a href="https://github.com/ttys3/unrar.rs/commits/5ebac5eb262e26ab8ee2fb715cb4366c0876ea74">5ebac5e</a>)
-- <em>(unrar_sys)</em> remove indirect dependency to MSVC comsupp library for windows-gnu target (<a href="https://github.com/ttys3/unrar.rs/commits/f2adc5820c30216f5ac27fb888040b6618d90ae6">f2adc58</a>)
 - <details>
   <summary><em>(unrar_sys)</em> use winapi crate for all windows targets (<a href="https://github.com/ttys3/unrar.rs/commits/fe6838aad40f01864534468263631c3b960b98c9">fe6838a</a>)</summary>
   <blockquote>
@@ -545,6 +651,7 @@ Minor bug fix release that fixes builds on Windows targets adds minor performanc
   chore(unrar_sys): fall back to C++14 (minimal version supported by MSVC)
   </blockquote>
   </details>
+- <em>(unrar_sys)</em> remove indirect dependency to MSVC comsupp library for windows-gnu target (<a href="https://github.com/ttys3/unrar.rs/commits/f2adc5820c30216f5ac27fb888040b6618d90ae6">f2adc58</a>)
 
 ### <!--3-->Performance
 
@@ -553,8 +660,8 @@ Minor bug fix release that fixes builds on Windows targets adds minor performanc
 ### <!--4-->Miscellaneous / Refactors
 
 - <em>(license)</em> add Apache2 license #1 (<a href="https://github.com/ttys3/unrar.rs/commits/fe9d57f2c24b0eccef7ab3b5328e6e803e22d8ea">fe9d57f</a>)
-- <em>(unrar_sys)</em> upgrade DLL version to 6.24.0 (<a href="https://github.com/ttys3/unrar.rs/commits/5d196bfe3359bb54b3f148dedc62a99e739413b2">5d196bf</a>)
 - <em>(unrar_sys)</em> add upgrade instructions and script (<a href="https://github.com/ttys3/unrar.rs/commits/327b1c132b456b400e96def7e1ed988412241303">327b1c1</a>)
+- <em>(unrar_sys)</em> upgrade DLL version to 6.24.0 (<a href="https://github.com/ttys3/unrar.rs/commits/5d196bfe3359bb54b3f148dedc62a99e739413b2">5d196bf</a>)
 
 ### <!--5-->Testing
 
@@ -580,10 +687,9 @@ This release fixes a critical UB bug
 - <em>(deps)</em> remove unused lazy_static dependency (<a href="https://github.com/ttys3/unrar.rs/commits/a4adeacab951283691864f14f3172b667abc009a">a4adeac</a>)
 - add test step for unrar_sys library (<a href="https://github.com/ttys3/unrar.rs/commits/986de022da9336dacc4a0ec3df2404024852b112">986de02</a>)
 
-### <!--7-->Example
+### <!--8-->Styling
 
 - <em>(unrar_sys)</em> format lister example (<a href="https://github.com/ttys3/unrar.rs/commits/da5f1a4b5f7cecea9abc11686bc238029a29038f">da5f1a4</a>)
-- <em>(unrar_sys)</em> fix windows build for lister example (<a href="https://github.com/ttys3/unrar.rs/commits/91646311cf24608c6059082786465a6f33035590">9164631</a>)
 
 
 ## [0.5.0] - 2023-06-22
@@ -604,32 +710,28 @@ Another major focus of this release was documentation: all API items are documen
 
 ### <!--2-->Features
 
-- implement typestate pattern, completely rewrite major parts (<a href="https://github.com/ttys3/unrar.rs/commits/b3ef161f4e7f10ced4c8900a4cdf18af8b6ca6bb">b3ef161</a>)
-- upgrade dependencies (<a href="https://github.com/ttys3/unrar.rs/commits/4539125616ee92cc09bcf833f4740f069113cde4">4539125</a>)
 - Archive::as_first_part returns self (<a href="https://github.com/ttys3/unrar.rs/commits/0c2566258a6573e2d050d1bafc32138660388723">0c25662</a>)
+- upgrade dependencies (<a href="https://github.com/ttys3/unrar.rs/commits/4539125616ee92cc09bcf833f4740f069113cde4">4539125</a>)
+- implement typestate pattern, completely rewrite major parts (<a href="https://github.com/ttys3/unrar.rs/commits/b3ef161f4e7f10ced4c8900a4cdf18af8b6ca6bb">b3ef161</a>)
 
 ### <!--4-->Miscellaneous / Refactors
 
 - <em>(dll)</em> upgrade DLL version to 6.2.8 (<a href="https://github.com/ttys3/unrar.rs/commits/598e273a340a5c612aee3134538f90385f23f50e">598e273</a>)
-- update author e-mail (<a href="https://github.com/ttys3/unrar.rs/commits/3e40b8d688bfed3bec6156b553539f907d591438">3e40b8d</a>)
-- update authors (<a href="https://github.com/ttys3/unrar.rs/commits/edeb4bce753a36886ef6d53a140ad87ee8c40d68">edeb4bc</a>)
-- add Github Actions workflow (<a href="https://github.com/ttys3/unrar.rs/commits/b8f213903955c066a494dc92a790549f2ab9b1e9">b8f2139</a>)
-- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/901a28ab82b8bb5b10bb49f69b32f91a97574dc9">901a28a</a>)
-- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/dcbad8e1faf8bda9c1f9a4ac6f6282f54994f7e3">dcbad8e</a>)
 - return Result<Option<T>,E> instead of Option<Result<T,E>> (<a href="https://github.com/ttys3/unrar.rs/commits/6bca25c2ddd1be8c0605d36f6ca7ab4449849e3d">6bca25c</a>)
+- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/dcbad8e1faf8bda9c1f9a4ac6f6282f54994f7e3">dcbad8e</a>)
+- edition=2021, remove superfluous extern crates (<a href="https://github.com/ttys3/unrar.rs/commits/901a28ab82b8bb5b10bb49f69b32f91a97574dc9">901a28a</a>)
+- add Github Actions workflow (<a href="https://github.com/ttys3/unrar.rs/commits/b8f213903955c066a494dc92a790549f2ab9b1e9">b8f2139</a>)
+- update authors (<a href="https://github.com/ttys3/unrar.rs/commits/edeb4bce753a36886ef6d53a140ad87ee8c40d68">edeb4bc</a>)
+- update author e-mail (<a href="https://github.com/ttys3/unrar.rs/commits/3e40b8d688bfed3bec6156b553539f907d591438">3e40b8d</a>)
 
 ### <!--6-->Documentation
 
 - further improve crate-level docs (<a href="https://github.com/ttys3/unrar.rs/commits/c5bb2bfaa6080509fd0b5120b5aa8edcafb0591a">c5bb2bf</a>)
 
-### <!--7-->Example
-
-- <em>(read_named)</em> rename example and print content (<a href="https://github.com/ttys3/unrar.rs/commits/9b1354390c108066ce7be63bf788a6cd13c56bc0">9b13543</a>)
-
 ### <!--8-->Styling
 
-- cargo fmt (<a href="https://github.com/ttys3/unrar.rs/commits/0bf0d59353c89c02be52855dbf0af515f24568d1">0bf0d59</a>)
 - use std::ptr::null/_mut instead of 0 as *_ (<a href="https://github.com/ttys3/unrar.rs/commits/d0e6547459e2ef7f2050c864ce55ddcb016984ab">d0e6547</a>)
+- cargo fmt (<a href="https://github.com/ttys3/unrar.rs/commits/0bf0d59353c89c02be52855dbf0af515f24568d1">0bf0d59</a>)
 
 
 ## [0.4.3] - 2017-12-26
