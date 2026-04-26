@@ -6,7 +6,76 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-04-26
+
+
+### <!--2-->Features
+
+- <details>
+  <summary><em>(error,extract)</em> surface ERAR_LARGE_DICT, expose ExtractStatus, unify cancel (<a href="https://github.com/ttys3/unrar.rs/commits/498546b5194146021771607f01c8d182c595ef46">498546b</a>)</summary>
+  <blockquote>
+
+  Resolve five issues that blocked the 0.7.2 release line for downstream<br>
+  crates. Two were library-internal panics; three were callback-API gaps<br>
+  that left users unable to react to corner cases the C library already<br>
+  signalled.<br>
+  <br>
+  Library panics<br>
+  - Add ERAR_LARGE_DICT = 25 (FFI) and the matching Code::LargeDict<br>
+    variant, with a Display message that explains the build-time dictionary<br>
+    cap. Modern RAR5 archives commonly need >= 64 MiB dictionaries; without<br>
+    this mapping Code::from(25) returned None and Code::from(...).unwrap()<br>
+    paniced from inside the library.<br>
+  - Replace every Code::from(...).unwrap() (5 sites in open_archive.rs)<br>
+    with Code::from(x). Code::from now returns Code directly: known DLL<br>
+    codes resolve to named variants and unknown values fall back to the<br>
+    new Code::Unmapped(i32) tuple variant, preserving the raw value for<br>
+    logging or numeric matching.<br>
+  - Mark Code, ExtractEvent, and ExtractStatus as #[non_exhaustive] so<br>
+    future ERAR_*/UCM_* additions stay non-breaking.<br>
+  <br>
+  Callback semantics<br>
+  - Forward UCM_LARGEDICT(5) to user callbacks via the new<br>
+    ExtractEvent::LargeDictWarning { dict_size_kb, max_dict_size_kb }.<br>
+    Returning false declines the oversized dictionary; returning true lets<br>
+    the DLL surface the failure as Err(LargeDict).<br>
+  - Vendor patch 0006 now also honours the trampoline cancel signal on<br>
+    UCM_EXTRACTFILE_OK / UCM_EXTRACTFILE_ERR (previously only Start<br>
+    responded), making the documented "return false to cancel" contract<br>
+    truly uniform across event types.<br>
+  - extract_all_with_callback now returns UnrarResult<ExtractStatus>, with<br>
+    ExtractStatus::Completed vs ExtractStatus::Cancelled distinguishing a<br>
+    natural finish from a user-cancelled run. This restores observability<br>
+    that was lost when the trampoline merged both paths into Ok(()).<br>
+  <br>
+  Other improvements<br>
+  - read_filename: lift the in-trampoline buffer cap from 1024 to 2048<br>
+    WCHAR to match the rest of the codebase (HeaderDataEx, ChangeVolumeW).<br>
+    Long extraction paths no longer get silently truncated en route to<br>
+    ExtractEvent.<br>
+  - Add .editorconfig to keep editors and git apply.whitespace=fix from<br>
+    stripping trailing whitespace inside vendor patches and the vendored<br>
+    C++ tree, since several patch hunks rely on those bytes for context<br>
+    matching.<br>
+  <br>
+  Test coverage<br>
+  - tests/error_codes.rs: 6 tests over Code::from / Display, including a<br>
+    Code-variant x When matrix to guard against future Display panics.<br>
+  - tests/extract_all_callback.rs: 5 tests covering the<br>
+    Completed/Cancelled signal across Start/Ok cancel paths.
+  </blockquote>
+  </details>  - **BREAKING**: Code, ExtractEvent, and ExtractStatus are now
+#[non_exhaustive]. Code gains LargeDict and Unmapped(i32); Code::from
+returns Code directly (was Option<Code>). ExtractEvent gains
+LargeDictWarning. extract_all_with_callback now returns
+UnrarResult<ExtractStatus> instead of UnrarResult<()>; existing call
+sites need to match on ExtractStatus or discard it via
+let _ = archive.extract_all_with_callback(...)?;.
+
+
 ## [0.7.1] - 2026-04-26
+
+v0.7.1
 
 
 ### <!--1-->Bug Fixes
@@ -126,6 +195,7 @@ the ids) needs to follow.
   flow.
   </blockquote>
   </details>
+- bump version to 0.7.1 (<a href="https://github.com/ttys3/unrar.rs/commits/65ccbd6f7274d439f14977295529882ccf109edb">65ccbd6</a>)
 
 
 ## [0.7.0] - 2026-04-25
