@@ -49,6 +49,10 @@ pub enum ExtractEvent {
     Ok {
         /// The filename that was extracted
         filename: PathBuf,
+        /// The uncompressed size of the file in bytes, carried over
+        /// from the matching `Start` event so callers do not have to
+        /// stash it themselves to log progress.
+        size: u64,
     },
     /// File extraction failed.
     Err {
@@ -423,8 +427,8 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     ///             print!("extracting {}... ({} bytes) ", filename.display(), size);
     ///             true // continue extraction
     ///         }
-    ///         ExtractEvent::Ok { .. } => {
-    ///             println!("ok");
+    ///         ExtractEvent::Ok { filename, size } => {
+    ///             println!("ok ({} bytes) {}", size, filename.display());
     ///             true
     ///         }
     ///         ExtractEvent::Err { filename, error_code } => {
@@ -461,6 +465,10 @@ impl OpenArchive<Process, CursorBeforeHeader> {
         struct CallbackData<'a, F> {
             callback: &'a mut F,
             cancelled: bool,
+            // Carried from UCM_EXTRACTFILE (Start) into UCM_EXTRACTFILE_OK
+            // (Ok) so the surfaced ExtractEvent::Ok can include the size
+            // the upstream library only reports at Start time.
+            pending_size: u64,
         }
 
         extern "C" fn extract_callback<F>(
@@ -529,11 +537,13 @@ impl OpenArchive<Process, CursorBeforeHeader> {
             match msg {
                 native::UCM_EXTRACTFILE => {
                     // p1 = filename (wchar_t*), p2 = file size
+                    let size = p2 as u64;
+                    // Stash the size unconditionally so a later OK event
+                    // still gets it even if read_filename fails here and
+                    // we end up skipping the Start callback.
+                    data.pending_size = size;
                     if let Some(filename) = read_filename(p1) {
-                        let event = ExtractEvent::Start {
-                            filename,
-                            size: p2 as u64,
-                        };
+                        let event = ExtractEvent::Start { filename, size };
                         if !(data.callback)(event) {
                             data.cancelled = true;
                             return -1; // Cancel extraction
@@ -544,7 +554,10 @@ impl OpenArchive<Process, CursorBeforeHeader> {
                 native::UCM_EXTRACTFILE_OK => {
                     // p1 = filename (wchar_t*), p2 = 0
                     if let Some(filename) = read_filename(p1) {
-                        let event = ExtractEvent::Ok { filename };
+                        let event = ExtractEvent::Ok {
+                            filename,
+                            size: data.pending_size,
+                        };
                         if !(data.callback)(event) {
                             data.cancelled = true;
                             return -1;
@@ -599,6 +612,7 @@ impl OpenArchive<Process, CursorBeforeHeader> {
         let mut callback_data = CallbackData {
             callback: &mut callback,
             cancelled: false,
+            pending_size: 0,
         };
 
         unsafe {
