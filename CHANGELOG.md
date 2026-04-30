@@ -6,7 +6,34 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-04-30
+
+
+### <!--1-->Bug Fixes
+
+- <details>
+  <summary><em>(ffi)</em> parameterize HeaderDataEx offset assertions by sizeof(wchar_t) (<a href="https://github.com/ttys3/unrar.rs/commits/345c0d35ffed13d6a3d2ee87f165a0d647cac0f4">345c0d3</a>)</summary>
+  <blockquote>
+
+  The offset_of assertions for HeaderDataEx hard-coded the offsets for<br>
+  Linux/macOS where wchar_t is 4 bytes (UCS-4). On Windows MSVC wchar_t<br>
+  is 2 bytes (UTF-16), so every offset after the first [wchar_t; 1024]<br>
+  array differs, and the const evaluator panicked at compile time:<br>
+  <br>
+      error E0080: evaluation panicked: assertion failed:<br>
+          offset_of(HeaderDataEx, filename) == 5120<br>
+  <br>
+  Parameterize all post-archive_name_w offsets by size_of::<wchar_t>() so<br>
+  the assertions are correct on both 2-byte and 4-byte wchar_t targets.<br>
+  OpenArchiveDataEx is unaffected since its wide-char fields are pointers,<br>
+  which are 8 bytes on every 64-bit target.
+  </blockquote>
+  </details>
+
+
 ## [0.7.3] - 2026-04-26
+
+v0.7.3
 
 
 ### <!--4-->Miscellaneous / Refactors
@@ -30,6 +57,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   without giving up any feature this crate currently uses.
   </blockquote>
   </details>
+- bump version to 0.7.3 (<a href="https://github.com/ttys3/unrar.rs/commits/7f22ab6bb31c037667fcdc64a3c8a2ae68369773">7f22ab6</a>)
 
 
 ## [0.7.2] - 2026-04-26
