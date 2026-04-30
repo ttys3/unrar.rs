@@ -6,7 +6,39 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-04-30
+
+
+### <!--2-->Features
+
+- <details>
+  <summary><em>(extract)</em> include uncompressed size in ExtractEvent::Ok (<a href="https://github.com/ttys3/unrar.rs/commits/6909d6d23ff3539b5b9c2490e73ef788a8428ac7">6909d6d</a>)</summary>
+  <blockquote>
+
+  The C library only reports each file's uncompressed size at<br>
+  UCM_EXTRACTFILE (Start) time; UCM_EXTRACTFILE_OK delivers the same<br>
+  filename but no size. Every caller that wants to log "extracted<br>
+  (size) filename" after the bytes hit disk had to stash the size<br>
+  themselves between the two events, which is awkward boilerplate<br>
+  that this crate is in a better position to handle once.<br>
+  <br>
+  Carry the size in the trampoline's CallbackData and surface it as<br>
+  a new field on ExtractEvent::Ok. The variant is already<br>
+  #[non_exhaustive], so adding a field is non-breaking for existing<br>
+  matchers using `Ok { .. }` or `Ok { filename }` (callers that<br>
+  wanted the size will need to bind it explicitly, which is the<br>
+  point).<br>
+  <br>
+  The Start arm now stashes pending_size unconditionally even when<br>
+  read_filename fails, so a later Ok cannot accidentally surface a<br>
+  stale size from a previous file.
+  </blockquote>
+  </details>
+
+
 ## [0.7.4] - 2026-04-30
+
+v0.7.4
 
 
 ### <!--1-->Bug Fixes
@@ -29,6 +61,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   which are 8 bytes on every 64-bit target.
   </blockquote>
   </details>
+
+### <!--4-->Miscellaneous / Refactors
+
+- bump version to 0.7.4 (<a href="https://github.com/ttys3/unrar.rs/commits/02da1dc38b2b33d79f3358cc0669aa57583228a6">02da1dc</a>)
 
 
 ## [0.7.3] - 2026-04-26
