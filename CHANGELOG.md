@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-05-04
+
+
+### <!--1-->Bug Fixes
+
+- <em>(extract)</em> preserve non-ASCII filenames on Linux batch extract under C locale (<a href="https://github.com/ttys3/unrar.rs/commits/405d8cc657ae66c28124c3b5b68bba04e0f95bc2">405d8cc</a>)
+
+
 ## [0.7.5] - 2026-04-30
+
+v0.7.5
 
 
 ### <!--2-->Features
@@ -34,6 +44,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   stale size from a previous file.
   </blockquote>
   </details>
+
+### <!--4-->Miscellaneous / Refactors
+
+- bump version to 0.7.5 (<a href="https://github.com/ttys3/unrar.rs/commits/b72d729f232ad0030a3fd7404733e108b1663249">b72d729</a>)
 
 
 ## [0.7.4] - 2026-04-30
