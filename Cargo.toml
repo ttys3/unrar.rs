@@ -25,6 +25,30 @@ include = [
 [lib]
 name = "unrar_ng"
 
+[features]
+default = ["linux-batch-extract-utf8"]
+
+# Forwards to `unrar-ng-sys`'s `linux-batch-extract-utf8`: bypass libunrar's
+# `wcsrtombs` path on Linux/BSD batch extract by routing through
+# `WideToUtf` / `UtfToWide`. Default-on. See the crate-level doc in
+# `src/lib.rs` for the full rationale.
+linux-batch-extract-utf8 = ["unrar_ng_sys/linux-batch-extract-utf8"]
+
+# When enabled, this crate calls `setlocale(LC_CTYPE, "")` once via
+# `OnceLock` at the first call to `extract_all` / `extract_all_with_callback`,
+# with a fallback ladder (`C.UTF-8` / `en_US.UTF-8`) for environments
+# without `LANG` set. Most useful when paired with
+# `default-features = false` (so `linux-batch-extract-utf8` is off): gives
+# CLI-equivalent locale-respecting behavior on Linux/BSD without the
+# caller wiring up `setlocale` themselves. Disabled by default because
+# it mutates process-global libc state (`LC_CTYPE`).
+#
+# Note: `libc` is a target-gated optional dep below; enabling this
+# feature on Apple / Windows pulls in nothing extra (libc dep evaporates
+# on those targets) and `src/locale.rs` cfg-gates to a no-op stub. The
+# feature only has runtime effect on Linux / BSD.
+linux-batch-extract-setlocale = ["dep:libc"]
+
 [dependencies]
 regex = "1"
 bitflags = "2"
@@ -34,13 +58,27 @@ widestring = "1"
 path = "unrar_sys"
 package = "unrar-ng-sys"
 version = "0.7.5"
+# `default-features = false` so that root crate's own `linux-batch-extract-utf8`
+# feature is the single source of truth for the cc define gate; `features =
+# ["std"]` is unconditional because the high-level crate links against std
+# anyway and sys crate's `std` feature toggles `libc`/`winapi` std mode.
+default-features = false
+features = ["std"]
+
+# `libc` is target-gated to non-Apple non-Windows Unix only. On Apple and
+# Windows the `linux-batch-extract-setlocale` feature is a literal no-op
+# (`src/locale.rs` cfg-gates out, no `setlocale` call site is generated),
+# so we don't pull libc into the dep tree on those platforms even if the
+# feature is enabled.
+[target.'cfg(all(unix, not(target_vendor = "apple")))'.dependencies]
+libc = { version = "0.2", optional = true }
 
 [dev-dependencies]
 tempfile = "3.12.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 # Direct dev-dep so the packed-layout regression test in tests/packed_layout.rs
 # can call the raw FFI (otherwise integration tests cannot `use unrar_ng_sys::*`).
-unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.7.4" }
+unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.7.5", default-features = false, features = ["std"] }
 
 [[bench]]
 name = "extract_benchmark"

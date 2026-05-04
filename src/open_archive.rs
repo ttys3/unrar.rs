@@ -378,6 +378,7 @@ impl OpenArchive<Process, CursorBeforeHeader> {
     ///
     /// This function will panic if `dest` contains nul characters.
     pub fn extract_all<P: AsRef<Path>>(self, dest: P) -> UnrarResult<()> {
+        crate::locale::ensure_initialized();
         let dest_path = pathed::construct(dest.as_ref());
         let result = pathed::extract_all(self.handle.0.as_ptr(), &dest_path);
         match Code::from(result) {
@@ -461,6 +462,8 @@ impl OpenArchive<Process, CursorBeforeHeader> {
         P: AsRef<Path>,
         F: FnMut(ExtractEvent) -> bool,
     {
+        crate::locale::ensure_initialized();
+
         // Userdata struct to pass to the C callback
         struct CallbackData<'a, F> {
             callback: &'a mut F,

@@ -1,3 +1,24 @@
+//! Low-level FFI bindings to the vendored libunrar C++ source.
+//!
+//! For the safe high-level API see the `unrar-ng` crate.
+//!
+//! ## Filename encoding cargo features
+//!
+//! This sys crate exposes a `linux-batch-extract-utf8` cargo feature
+//! (default-on) that defines `UNRAR_NG_FORCE_UTF8` for the C build,
+//! routing libunrar's `WideToChar` / `CharToWide` (in `unicode.cpp`)
+//! through `WideToUtf` / `UtfToWide` (locale-independent UTF-8 transforms,
+//! the same path macOS uses via the auto-defined `_APPLE` macro) on
+//! non-Apple non-Windows Unix targets. With it disabled, libunrar uses
+//! its upstream `wcsrtombs` / `mbsrtowcs` path which honors `LC_CTYPE`.
+//!
+//! See the high-level `unrar-ng` crate documentation for the full
+//! design rationale, including the companion `linux-batch-extract-setlocale`
+//! feature on the high-level crate that provides Rust-side
+//! `OnceLock`-managed `setlocale(LC_CTYPE, "")` for callers who run with
+//! `default-features = false` and want CLI-equivalent
+//! locale-respecting behavior without writing setlocale code themselves.
+
 #![no_std]
 
 #[cfg(feature = "std")]

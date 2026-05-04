@@ -65,6 +65,8 @@ RAR DLL path APIs come in narrow-char and wide-char flavors, and the right choic
 
 `OpenArchiveDataEx::new` in `unrar_sys/src/lib.rs` (lib `unrar_ng_sys`) has the mirror split (`*const c_char` on Linux/NetBSD, `*const wchar_t` elsewhere). When adding anything FFI path-related, the change has to land in both `pathed/linux.rs` and `pathed/all.rs`.
 
+The two pathed branches converge inside libunrar at `file.cpp::Create` for the wide → 8-bit filename conversion that produces the on-disk byte name. On non-Apple non-Windows Unix that conversion is governed by the `linux-batch-extract-utf8` cargo feature: ON (default) routes through `WideToUtf` (locale-independent UTF-8) via vendor patch 0007; OFF falls back to upstream `wcsrtombs` and the optional `linux-batch-extract-setlocale` cargo feature provides Rust-side `OnceLock`-managed `setlocale(LC_CTYPE, "")` (only invoked from `extract_all` / `extract_all_with_callback`) for callers who want CLI-equivalent behavior. See "Filename encoding policy" below for the full spec.
+
 ### FFI layout — `#[repr(C, packed(1))]` is mandatory
 
 Every struct in `unrar_sys/src/lib.rs` that crosses the FFI boundary (`HeaderData`, `HeaderDataEx`, `OpenArchiveData`, `OpenArchiveDataEx`) must be `#[repr(C, packed(1))]` because `vendor/unrar/dll.hpp` declares them inside `#pragma pack(push, 1)`. Plain `#[repr(C)]` inserts 4 bytes of natural alignment padding before the first pointer field and silently shifts every subsequent field — tests only looked at pre-pointer fields for years, which is why the drift was latent.
@@ -78,14 +80,34 @@ Rules when touching these structs:
 
 ### Vendored UnRAR source
 
-`unrar_sys/vendor/unrar/` is a **pristine** RARLab source tree plus a small set of fork patches stored as numbered files under `unrar_sys/vendor/patches/0001..0006-*.patch`. The patches add:
+`unrar_sys/vendor/unrar/` is a **pristine** RARLab source tree plus a small set of fork patches stored as numbered files under `unrar_sys/vendor/patches/0001..0007-*.patch`. The patches add:
 
 1. Two small upstream-fix cherry-picks and one macOS Intel build fix.
 2. The batch-extraction feature chain: `RARExtractAll`/`W` (dll.cpp/hpp/def), a perf pass over the extraction loop, and the `UCM_EXTRACTFILE{,_OK,_ERR}` callbacks.
+3. patch 0007 routes Linux/BSD `WideToChar` / `CharToWide` through `WideToUtf` / `UtfToWide` (gated by the `UNRAR_NG_FORCE_UTF8` cc define which the `linux-batch-extract-utf8` cargo feature controls). Fixes the upstream Linux batch-extract `_`-mangling bug for non-ASCII filenames without requiring `setlocale`. See the patch header for the full trade-off matrix.
 
-To upgrade to a new UnRAR release, run `./unrar_sys/vendor/upgrade.sh <tarball-url>` from a clean working tree — it extracts the tarball over `unrar/` and applies every patch in `patches/` via `git apply --index` in numeric order (the `0004-…batch.patch`, `0005-…loop.patch`, `0006-…callbacks.patch` chain depends on that order). The vendor README has the full procedure.
+To upgrade to a new UnRAR release, run `./unrar_sys/vendor/upgrade.sh <tarball-url>` from a clean working tree — it extracts the tarball over `unrar/` and applies every patch in `patches/` via `git apply --index` in numeric order (the `0004-…batch.patch`, `0005-…loop.patch`, `0006-…callbacks.patch` chain depends on that order; 0007 only touches `unicode.cpp` and is independent of the batch chain). The vendor README has the full procedure.
 
 `unrar_sys/build.rs` hard-codes the list of `.cpp` files to compile. New upstream versions may add files (e.g. `largepage.cpp` in 7.x, `motw.cpp` Windows-only) — the list in `build.rs` must be updated to match.
+
+## Filename encoding policy [HARD REQUIREMENT]
+
+`unrar-ng`'s Linux/BSD on-disk filename encoding behavior is governed by two orthogonal cargo features. Apple and Windows are **not** affected by either feature — they use OS-native conversion paths (macOS: `_APPLE` branch → `WideToUtf`; Windows: `_WIN_ALL` branch → `WideCharToMultiByte(CP_ACP)` + `CreateFile(LPCWSTR)`).
+
+- **`linux-batch-extract-utf8`** (default ON): `unrar_sys/build.rs` defines `UNRAR_NG_FORCE_UTF8` for the vendored libunrar build, routing `WideToChar` / `CharToWide` (`unicode.cpp`) through `WideToUtf` / `UtfToWide` (locale-independent). When ON, on-disk filenames are always UTF-8 bytes regardless of process `LC_CTYPE`. The library never calls `setlocale` in this mode — host process libc state is **never** mutated.
+- **`linux-batch-extract-setlocale`** (default OFF): when ON, `crate::locale::ensure_initialized()` uses `OnceLock` to call `setlocale(LC_CTYPE, "")` once at the **first call to `OpenArchive::extract_all` or `extract_all_with_callback`**, with a fallback ladder (`C.UTF-8` / `C.utf8` / `en_US.UTF-8` / `en_US.utf8`) for containers without `LANG` set. Other operations (listing, per-file extract, read-to-memory, test, skip) do **not** trigger the init — they're either locale-immune (per-file via private-use-area round-trip in `pathed/linux.rs`; listing via wstring direct copy) or don't write to disk. Only meaningful when `linux-batch-extract-utf8` is OFF; with it ON, the `setlocale` call is dead code.
+
+Three useful combinations (see the high-level crate's `src/lib.rs` doc for `Cargo.toml` examples):
+
+1. **Default `linux-batch-extract-utf8`**: Linux always UTF-8, no `setlocale`, no libc state pollution. Recommended for ≥ 99% of callers.
+2. **`default-features = false, features = ["linux-batch-extract-setlocale"]`**: CLI-equivalent locale-respecting behavior (LANG=zh_CN.GBK → GBK byte names, etc.). Library auto-inits `LC_CTYPE`. Mutates process libc state.
+3. **`default-features = false`**: stock upstream libunrar. Caller is fully responsible for `setlocale` themselves.
+
+The `libc` optional dep is target-gated (`cfg(all(unix, not(target_vendor = "apple")))`), so enabling `linux-batch-extract-setlocale` on Apple / Windows pulls in nothing extra (libc dep evaporates) and `src/locale.rs` cfg-gates to a no-op stub. The feature is a literal compile-time no-op on those targets.
+
+When modifying `unicode.cpp`, `file.cpp`, `unrar_sys/build.rs`, or `src/locale.rs`: this matrix is the spec. Adding an unconditional `setlocale` call **inside this crate** (Rust or C side, regardless of feature gate) regresses the default's "no libc state mutation" guarantee and must be rejected in review. (Callers calling `setlocale` themselves outside of this crate is permitted — that's how the `default-features = false` opt-out works.)
+
+The full design rationale, including why the default deliberately diverges from standalone `unrar` CLI behavior under non-UTF-8 locales, is in `src/lib.rs`'s crate-level doc.
 
 ## Release / changelog
 

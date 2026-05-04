@@ -70,7 +70,8 @@ fn main() {
         #[cfg(windows)]
         "motw",       // New in unrar 7.x for Mark of the Web support (Windows only)
     ].iter().map(|&s| format!("vendor/unrar/{s}.cpp")).collect();
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .cpp(true) // Switch to C++ library compilation.
         .opt_level(2)
         .std("c++14")
@@ -94,7 +95,41 @@ fn main() {
         .define("_FILE_OFFSET_BITS", Some("64"))
         .define("_LARGEFILE_SOURCE", None)
         .define("RAR_SMP", None)
-        .define("RARDLL", None)
-        .files(&files)
-        .compile("libunrar.a");
+        .define("RARDLL", None);
+
+    // UNRAR_NG_FORCE_UTF8 commits Linux/BSD wide<->8bit filename conversions to
+    // the same locale-independent WideToUtf / UtfToWide path that macOS has
+    // used for years (raros.hpp:18-20 auto-defines _APPLE on __APPLE__ targets).
+    //
+    // Gated behind cargo feature `linux-batch-extract-utf8` (default-on). When
+    // the feature is disabled, this define is NOT set and libunrar's
+    // MBFUNCTIONS branch in unicode.cpp (`wcsrtombs` / `mbsrtowcs`) takes over.
+    // In that mode the caller is responsible for `setlocale(LC_CTYPE, "")` —
+    // either by calling it themselves before invoking this crate, or by
+    // also enabling the high-level crate's `linux-batch-extract-setlocale`
+    // cargo feature, which provides a Rust-side `OnceLock`-managed lazy init.
+    //
+    // Apple is excluded from the gate because raros.hpp already auto-defines
+    // _APPLE on __APPLE__ targets — the WideToUtf path runs regardless of
+    // this feature. Windows is excluded because the `_WIN_ALL` branch in
+    // unicode.cpp uses `WideCharToMultiByte(CP_ACP, ...)` (OS-level system
+    // codepage; CP936 zh-CN, CP932 ja-JP, CP65001 if user opted into the
+    // Win10 ≥ 1803 / 11 "Beta UTF-8 ACP" toggle) and writes via
+    // `CreateFile(LPCWSTR)` (wide-native NTFS). Vendor patch 0007 is a
+    // no-op on both Apple and Windows builds.
+    //
+    // Cargo translates feature `linux-batch-extract-utf8` into the env var
+    // `CARGO_FEATURE_LINUX_BATCH_EXTRACT_UTF8` (uppercase, hyphen → underscore).
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_vendor = std::env::var("CARGO_CFG_TARGET_VENDOR").unwrap_or_default();
+    let feature_linux_batch_extract_utf8 =
+        std::env::var("CARGO_FEATURE_LINUX_BATCH_EXTRACT_UTF8").is_ok();
+    let force_utf8 = feature_linux_batch_extract_utf8
+        && target_os != "windows"
+        && target_vendor != "apple";
+    if force_utf8 {
+        build.define("UNRAR_NG_FORCE_UTF8", None);
+    }
+
+    build.files(&files).compile("libunrar.a");
 }

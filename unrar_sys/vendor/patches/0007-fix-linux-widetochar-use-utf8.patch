@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000007 Mon Sep 17 00:00:00 2001
+From: ttyS3 <ttys3.rust@gmail.com>
+Date: Mon, 4 May 2026 14:12:46 +0800
+Subject: [PATCH] fix(unicode): commit Linux/BSD filename conversions to UTF-8
+
+Background
+==========
+libunrar's WideToChar / CharToWide in unicode.cpp branch on platform:
+
+  - Windows (_WIN_ALL): WideCharToMultiByte(CP_ACP, ...) - OS-level
+    codepage, independent of any libc setlocale state. NTFS wide-native.
+  - Apple (_APPLE, auto-defined via raros.hpp:18-20 on __APPLE__):
+    WideToUtf / UtfToWide - pure character-arithmetic UTF-8 transforms,
+    zero libc dependency.
+  - Other Unix (MBFUNCTIONS): wcsrtombs / mbsrtowcs - depend on the
+    process LC_CTYPE.
+
+The MBFUNCTIONS branch is the buggy one for library use. The standalone
+`unrar` CLI hides the bug because rar.cpp:8 calls setlocale(LC_ALL, "")
+in main(). Library users have no equivalent hook, so a process inheriting
+LC_CTYPE=C/POSIX (systemd units, minimal Docker images, SMB-side
+fileserver processes, etc.) makes wcsrtombs degrade to WideToCharMap,
+writing literal '_' for every non-ASCII wchar (unicode.cpp:185). CJK /
+accented filenames become long runs of underscores on disk.
+
+Empirically (Linux + LC_ALL=C, against unpatched 0.7.5), the bug is
+confined to RARExtractAll(W) - the batch extract path used by
+unrar-ng's `OpenArchive::extract_all` and `extract_all_with_callback`.
+The per-file extract path (`pathed/linux.rs::preprocess_extract`)
+constructs the full destination path in Rust and passes it through
+RARProcessFile's ANSI DestName parameter, which rides a private-use-area
+round-trip in CharToWideMap/WideToCharMap and is locale-immune. The
+batch path lets libunrar internally derive the output filename from the
+archive's wstring (real CJK codepoints), which the private-use round-trip
+cannot rescue, hence the mangling.
+
+Decision
+========
+This patch extends the _APPLE branch in WideToChar (line ~30) and
+CharToWide (line ~95) to also fire when UNRAR_NG_FORCE_UTF8 is defined.
+unrar-ng-sys's build.rs defines it when cargo feature
+`linux-batch-extract-utf8` is enabled (default-on) AND the target is
+non-Apple non-Windows Unix. Result: both directions of wide<->8bit
+filename conversion are pure UTF-8 transforms with no libc dependency.
+
+This is a conscious narrowing versus standalone `unrar` CLI behavior:
+when CLI runs under LANG=zh_CN.GBK it emits GBK byte filenames; this
+patch emits UTF-8 byte filenames regardless of LANG. The narrowing is
+justified because:
+
+  - Modern Linux filesystem convention is UTF-8 (every userspace tool,
+    GUI, FS driver default, distro init system since ~2010).
+  - GBK / Shift-JIS / EUC-* LANG settings have effectively disappeared
+    from real-world Linux installations by 2026 (no major distro
+    defaults to them; glibc 2.13+ ships C.UTF-8).
+  - Calling setlocale at library load (the alternative that would
+    preserve CLI parity for legacy locales) perturbs the host process's
+    libc state for ALL callers to benefit a niche population that
+    barely exists.
+  - WideToUtf / UtfToWide are deterministic, locale-independent, and
+    already the proven correct path on macOS where filesystem semantics
+    are identical to modern Linux.
+
+Callers who DO need legacy-codepage byte output can opt out by setting
+`default-features = false` on `unrar-ng`. With the feature off, the
+upstream MBFUNCTIONS branch (wcsrtombs / mbsrtowcs) is restored. They
+can additionally enable `linux-batch-extract-setlocale` to have the
+crate auto-init LC_CTYPE via OnceLock at the first batch-extract call,
+matching CLI behavior without writing setlocale code themselves.
+
+Patch scope
+===========
+- unicode.cpp WideToChar (~line 30):
+    #elif defined(_APPLE)
+  becomes
+    #elif defined(_APPLE) || defined(UNRAR_NG_FORCE_UTF8)
+- unicode.cpp CharToWide (~line 95): same one-line extension
+- No other vendored file modified.
+- _WIN_ALL branch unchanged (Windows behavior unaffected).
+- _APPLE branch unchanged (macOS behavior unaffected).
+- MBFUNCTIONS branch reachable when both _APPLE and UNRAR_NG_FORCE_UTF8
+  are absent, i.e. with `linux-batch-extract-utf8` cargo feature off.
+---
+ unicode.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/unicode.cpp b/unicode.cpp
+index a9d103d..f9c8fda 100644
+--- a/unicode.cpp
++++ b/unicode.cpp
+@@ -27,7 +27,7 @@ bool WideToChar(const wchar *Src,char *Dest,size_t DestSize)
+     RetCode=false;
+
+ // wcstombs is broken in Android NDK r9.
+-#elif defined(_APPLE)
++#elif defined(_APPLE) || defined(UNRAR_NG_FORCE_UTF8)
+   WideToUtf(Src,Dest,DestSize);
+
+ #elif defined(MBFUNCTIONS)
+@@ -92,7 +92,7 @@ bool CharToWide(const char *Src,wchar *Dest,size_t DestSize)
+     RetCode=false;
+
+ // mbstowcs is broken in Android NDK r9.
+-#elif defined(_APPLE)
++#elif defined(_APPLE) || defined(UNRAR_NG_FORCE_UTF8)
+   UtfToWide(Src,Dest,DestSize);
+
+ #elif defined(MBFUNCTIONS)
+--
+2.50.1

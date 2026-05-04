@@ -28,8 +28,18 @@ exclude = [
 name = "unrar_ng_sys"
 
 [features]
-default = ["std"]
+default = ["std", "linux-batch-extract-utf8"]
 std = ["libc/std", "winapi/std"]
+
+# When enabled, build.rs defines UNRAR_NG_FORCE_UTF8 on non-Apple non-Windows
+# Unix targets, routing libunrar's wide<->8bit filename conversions
+# (`WideToChar` / `CharToWide` in `unicode.cpp`) through `WideToUtf` /
+# `UtfToWide` (locale-independent UTF-8 transforms - the same path macOS
+# has used for years via the auto-defined `_APPLE` macro). When disabled,
+# libunrar falls back to its upstream `wcsrtombs` / `mbsrtowcs` path which
+# honors `LC_CTYPE`. See the high-level `unrar-ng` crate's doc for the
+# full rationale and the companion `linux-batch-extract-setlocale` feature.
+linux-batch-extract-utf8 = []
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
