@@ -56,21 +56,54 @@ The original crate uses the UnRAR DLL's per-file API (`RARReadHeaderEx` + `RARPr
 
 `unrar-ng` adds a new batch extraction API (`extract_all`) that uses the same efficient traversal loop as the native `unrar` CLI, completely eliminating this overhead.
 
-### Performance: 94,000 Files (Linux Kernel Source Archive)
+### Performance: `unrar` crate vs `unrar-ng` (Linux kernel v7.0 source, ~94,000 files)
 
-| Method | Time | vs. Native CLI |
-|--------|------|----------------|
-| Native `unrar x` CLI | **13s** | baseline |
-| Original `unrar` crate (per-file API) | **73s** | 5.6x slower |
-| **`unrar-ng` `extract_all`** | **13s** | **same speed** |
+End-to-end extraction benchmark comparing the original [`unrar`](https://crates.io/crates/unrar) crate against `unrar-ng`. Test file: `kernel-v7.0.rar` (~94,000 files), created from the Linux kernel v7.0 source tree (downloaded from <https://github.com/torvalds/linux/archive/refs/tags/v7.0.zip>). The native `unrar` CLI and `unzip` are included as reference baselines.
 
-> **5.6x faster** than the original crate — fully matching native CLI performance.
->
-> Test environment: tmpfs (pure in-memory I/O), 12th Gen Intel Core i7.
->
-> For a detailed technical analysis, see [Batch Extraction Performance Optimization](./docs/2026-04-15_batch-extraction-performance-optimization.md).
+| Backend | Executed (wall) | User CPU | Sys CPU |
+|---------|-----------------|----------|---------|
+| Native `unrar` CLI (reference) | **7.15 s** | 7.07 s | 1.25 s |
+| Original `unrar` crate (per-file API) | 70.69 s | 68.03 s | 4.71 s |
+| **`unrar-ng` (`extract_all`)** | **6.88 s** | 6.74 s | 1.35 s |
 
-### Quick Example
+`unzip` on the same source tree (`unzip v7.0.zip`) takes **7.17 s** for reference.
+
+Key takeaways:
+
+- **~10.3x faster** than the original `unrar` crate (70.69 s → 6.88 s).
+- On par with the native `unrar` CLI (6.88 s vs 7.15 s).
+- Comparable to `unzip` extracting the same content (6.88 s vs 7.17 s).
+
+For a detailed technical analysis, see [Batch Extraction Performance Optimization](./docs/2026-04-15_batch-extraction-performance-optimization.md).
+
+<details>
+<summary>Test environment</summary>
+
+Tested under **tmpfs** to avoid filesystem I/O impact. Wall / user / sys timings come from the **fish shell** built-in `time` command.
+
+**Software**
+
+| Component | Version |
+|-----------|---------|
+| Host OS kernel | Linux 7.0.3 |
+| Shell | fish |
+| `rar` / `unrar` | 7.22 |
+| `unzip` | UnZip 6.00 of 20 April 2009, by Info-ZIP |
+
+**Hardware**
+
+| Component | Spec |
+|-----------|------|
+| CPU | 12th Gen Intel(R) Core(TM) i7-12700 |
+| RAM | 32 GB |
+
+**Archive creation (for completeness)**
+
+`rar a -r kernel-v7.0.rar ./linux-7.0/` — 20.12 s wall (102.85 s user, 10.30 s sys).
+
+</details>
+
+## Quick Example
 
 ```rust,no_run
 use unrar_ng::Archive;
@@ -248,3 +281,7 @@ The parts authored by this library's contributors are licensed under either of
 at your option.
 
 The embedded [C/C++ library](./unrar_sys/vendor/unrar) uses its own license. For more informations, see its [license file](./unrar_sys/vendor/unrar/license.txt).
+
+# Acknowledgements
+
+`unrar-ng` is a fork of the original [`unrar`](https://crates.io/crates/unrar) crate at [muja/unrar.rs](https://github.com/muja/unrar.rs). Huge thanks to [@muja](https://github.com/muja) and the original contributors — `unrar-ng` builds directly on their work.
