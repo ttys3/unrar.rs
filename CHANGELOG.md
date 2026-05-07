@@ -6,12 +6,43 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-05-07
+
+
+### <!--4-->Miscellaneous / Refactors
+
+- bump actions/checkout to v5 for Node.js 24 (<a href="https://github.com/ttys3/unrar.rs/commits/0da762ed377aca8c6804e8ffc4e6471159a6cb91">0da762e</a>)
+
+### <!--6-->Documentation
+
+- <details>
+  <summary><em>(readme)</em> expand benchmark with real-world data and add acknowledgements (<a href="https://github.com/ttys3/unrar.rs/commits/796280b154d2e2bb341eb5177739f0127029f111">796280b</a>)</summary>
+  <blockquote>
+
+  - Replace synthetic 94k-files perf table with end-to-end extraction<br>
+    benchmark on Linux kernel v7.0 source (`unrar` CLI vs original crate<br>
+    vs `unrar-ng`), including reference `unzip` timing<br>
+  - Move test environment (software/hardware/archive creation) into a<br>
+    collapsible <details> block<br>
+  - Promote "Quick Example" to a top-level section (was nested under<br>
+    "Why This Fork?")<br>
+  - Add Acknowledgements section crediting muja/unrar.rs
+  </blockquote>
+  </details>
+
+
 ## [0.7.6] - 2026-05-04
+
+v0.7.6
 
 
 ### <!--1-->Bug Fixes
 
 - <em>(extract)</em> preserve non-ASCII filenames on Linux batch extract under C locale (<a href="https://github.com/ttys3/unrar.rs/commits/405d8cc657ae66c28124c3b5b68bba04e0f95bc2">405d8cc</a>)
+
+### <!--4-->Miscellaneous / Refactors
+
+- bump version to 0.7.6 (<a href="https://github.com/ttys3/unrar.rs/commits/89aadb4374698112b3b95659d84db6fdcad199b4">89aadb4</a>)
 
 
 ## [0.7.5] - 2026-04-30

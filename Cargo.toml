@@ -1,6 +1,6 @@
 [package]
 name = "unrar-ng"
-version = "0.7.6"
+version = "0.7.7"
 authors = [
   "Danyel Bayraktar <rust@danyel.io>",
   "vjoki <vjoki@zv.fi>",
@@ -57,7 +57,7 @@ widestring = "1"
 [dependencies.unrar_ng_sys]
 path = "unrar_sys"
 package = "unrar-ng-sys"
-version = "0.7.6"
+version = "0.7.7"
 # `default-features = false` so that root crate's own `linux-batch-extract-utf8`
 # feature is the single source of truth for the cc define gate; `features =
 # ["std"]` is unconditional because the high-level crate links against std
@@ -78,7 +78,7 @@ tempfile = "3.12.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 # Direct dev-dep so the packed-layout regression test in tests/packed_layout.rs
 # can call the raw FFI (otherwise integration tests cannot `use unrar_ng_sys::*`).
-unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.7.6", default-features = false, features = ["std"] }
+unrar_ng_sys = { path = "unrar_sys", package = "unrar-ng-sys", version = "0.7.7", default-features = false, features = ["std"] }
 
 [[bench]]
 name = "extract_benchmark"
