@@ -133,6 +133,52 @@ impl UnrarError {
 
 pub type UnrarResult<T> = Result<T, UnrarError>;
 
+/// Error returned by the streaming read methods
+/// ([`read_with`](crate::OpenArchive::read_with), [`read_to`](crate::OpenArchive::read_to)).
+///
+/// `E` is the error type produced by the caller's sink.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ReadError<E> {
+    /// The DLL failed to decompress the entry (bad data, wrong password, missing volume, ...).
+    Unrar(UnrarError),
+    /// The sink returned an error, which aborted decompression.
+    Sink(E),
+}
+
+impl<E: fmt::Display> fmt::Display for ReadError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReadError::Unrar(e) => write!(f, "{e}"),
+            ReadError::Sink(e) => write!(f, "sink error: {e}"),
+        }
+    }
+}
+
+impl<E: error::Error + 'static> error::Error for ReadError<E> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            ReadError::Unrar(e) => Some(e),
+            ReadError::Sink(e) => Some(e),
+        }
+    }
+}
+
+impl<E> From<UnrarError> for ReadError<E> {
+    fn from(e: UnrarError) -> Self {
+        ReadError::Unrar(e)
+    }
+}
+
+impl From<ReadError<std::io::Error>> for std::io::Error {
+    fn from(e: ReadError<std::io::Error>) -> Self {
+        match e {
+            ReadError::Sink(e) => e,
+            ReadError::Unrar(e) => std::io::Error::other(e),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NulError(usize);
 

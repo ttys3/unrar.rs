@@ -145,7 +145,7 @@ pub mod error;
 mod locale;
 mod pathed;
 mod open_archive;
-pub use error::UnrarResult;
+pub use error::{ReadError, UnrarResult};
 pub use open_archive::{
     CursorBeforeFile, CursorBeforeHeader, ExtractEvent, ExtractStatus, FileHeader, List, ListSplit,
     OpenArchive, Process, VolumeInfo,
