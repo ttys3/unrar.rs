@@ -733,6 +733,146 @@ impl OpenArchive<Process, CursorBeforeFile> {
         Ok(self.process_file_x::<ReadToVec>(None, None)?)
     }
 
+    /// Streams the decompressed contents of the file into `sink`, one chunk at a time,
+    /// without buffering the whole entry in memory.
+    /// Returns the owned Archive that can be processed further.
+    ///
+    /// `sink` is called with each chunk as the DLL produces it. Returning `Err` aborts
+    /// decompression and is surfaced as [`ReadError::Sink`]. Panics in `sink` are caught
+    /// at the FFI boundary and resumed once the DLL has returned.
+    ///
+    /// The CRC is only verified after the last chunk has been delivered, so on any `Err`
+    /// the data already handed to `sink` must be treated as untrustworthy. On `Err` the
+    /// archive is consumed, as with [`read`](Self::read).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let archive = unrar_ng::Archive::new("data/version.rar").open_for_processing().unwrap();
+    /// let header = archive.read_header().unwrap().unwrap();
+    /// let mut len = 0;
+    /// header.read_with(|chunk| {
+    ///     len += chunk.len();
+    ///     Ok::<_, std::convert::Infallible>(())
+    /// }).unwrap();
+    /// assert_eq!(len, "unrar-0.4.0".len());
+    /// ```
+    pub fn read_with<F, E>(
+        self,
+        mut sink: F,
+    ) -> Result<OpenArchive<Process, CursorBeforeHeader>, ReadError<E>>
+    where
+        F: FnMut(&[u8]) -> Result<(), E>,
+    {
+        struct SinkData<'a, F, E> {
+            sink: &'a mut F,
+            error: Option<E>,
+            panic: Option<Box<dyn std::any::Any + Send>>,
+        }
+
+        extern "C" fn sink_callback<F, E>(
+            msg: native::UINT,
+            user_data: native::LPARAM,
+            p1: native::LPARAM,
+            p2: native::LPARAM,
+        ) -> c_int
+        where
+            F: FnMut(&[u8]) -> Result<(), E>,
+        {
+            if user_data == 0 {
+                return 0;
+            }
+            let data = unsafe { &mut *(user_data as *mut SinkData<'_, F, E>) };
+            match msg {
+                native::UCM_CHANGEVOLUMEW => match p2 {
+                    native::RAR_VOL_ASK => -1,
+                    _ => 0,
+                },
+                native::UCM_PROCESSDATA => {
+                    // Some unpackers flush empty blocks; never build a slice from them.
+                    if p1 == 0 || p2 <= 0 {
+                        return 0;
+                    }
+                    let chunk = unsafe { std::slice::from_raw_parts(p1 as *const u8, p2 as usize) };
+                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        (data.sink)(chunk)
+                    })) {
+                        Ok(Ok(())) => 0,
+                        Ok(Err(e)) => {
+                            data.error = Some(e);
+                            -1
+                        }
+                        Err(payload) => {
+                            data.panic = Some(payload);
+                            -1
+                        }
+                    }
+                }
+                _ => 0,
+            }
+        }
+
+        let mut data = SinkData {
+            sink: &mut sink,
+            error: None,
+            panic: None,
+        };
+        unsafe {
+            native::RARSetCallback(
+                self.handle.0.as_ptr(),
+                Some(sink_callback::<F, E>),
+                &mut data as *mut _ as native::LPARAM,
+            );
+        }
+        // A sink abort surfaces from the DLL as ERAR_UNKNOWN, so the stashed
+        // panic / error take precedence over the returned code.
+        let result = Code::from(pathed::process_file(
+            self.handle.0.as_ptr(),
+            private::Operation::Test as i32,
+            None,
+            None,
+        ));
+        if let Some(payload) = data.panic {
+            std::panic::resume_unwind(payload);
+        }
+        if let Some(e) = data.error {
+            return Err(ReadError::Sink(e));
+        }
+        match result {
+            Code::Success => Ok(OpenArchive {
+                extra: CursorBeforeHeader,
+                damaged: self.damaged,
+                handle: self.handle,
+                flags: self.flags,
+                marker: std::marker::PhantomData,
+            }),
+            code => Err(UnrarError::from(code, When::Process).into()),
+        }
+    }
+
+    /// Streams the decompressed contents of the file into `writer`.
+    /// Returns the owned Archive that can be processed further.
+    ///
+    /// Convenience wrapper over [`read_with`](Self::read_with) using
+    /// [`Write::write_all`](std::io::Write::write_all); the same caveats apply. The
+    /// writer is not flushed.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// let mut archive = unrar_ng::Archive::new("archive.rar").open_for_processing().unwrap();
+    /// while let Some(header) = archive.read_header().unwrap() {
+    ///     let mut out = std::io::stdout().lock();
+    ///     archive = header.read_to(&mut out).unwrap();
+    /// }
+    /// ```
+    pub fn read_to<W: std::io::Write + ?Sized>(
+        self,
+        writer: &mut W,
+    ) -> Result<OpenArchive<Process, CursorBeforeHeader>, ReadError<std::io::Error>> {
+        self.read_with(|chunk| writer.write_all(chunk))
+    }
+
     /// Test the file without extracting it
     pub fn test(self) -> UnrarResult<OpenArchive<Process, CursorBeforeHeader>> {
         Ok(self.process_file::<Test>(None, None)?)
